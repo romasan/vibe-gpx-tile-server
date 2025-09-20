@@ -1,0 +1,18 @@
+{
+  "name": "gpx-tile-server",
+  "version": "1.0.0",
+  "main": "index.js",
+  "scripts": {
+    "start": "node tile-server.js"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "description": "",
+  "dependencies": {
+    "@mapbox/togeojson": "^0.16.2",
+    "express": "^5.1.0",
+    "sharp": "^0.34.4",
+    "xmldom": "^0.6.0"
+  }
+}
