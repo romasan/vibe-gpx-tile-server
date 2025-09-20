@@ -19,6 +19,8 @@ if (!fs.existsSync(tileCacheDir)) {
 // Кэш для данных GeoJSON
 let geojsonCache = null;
 let tileFeatureMap = {};
+let mapCenter = null;
+let mapZoom = null;
 
 // Чтение и преобразование GPX в GeoJSON
 function loadGPXFiles() {
@@ -34,10 +36,17 @@ function loadGPXFiles() {
 
 // Функция для вычисления пересечений маршрутов с тайлами
 function calculateTileIntersections(geojson) {
+  let minLat = Infinity, maxLat = -Infinity, minLon = Infinity, maxLon = -Infinity;
+
   geojson.features.forEach((feature, featureIndex) => {
     if (feature.geometry.type === 'LineString') {
       feature.geometry.coordinates.forEach(coord => {
         const [lon, lat] = coord;
+        minLat = Math.min(minLat, lat);
+        maxLat = Math.max(maxLat, lat);
+        minLon = Math.min(minLon, lon);
+        maxLon = Math.max(maxLon, lon);
+
         for (let z = 0; z <= 19; z++) {
           const tileX = Math.floor(((lon + 180) / 360) * Math.pow(2, z));
           const tileY = Math.floor(((1 - Math.log(Math.tan(lat * Math.PI / 180) + 1 / Math.cos(lat * Math.PI / 180)) / Math.PI) / 2) * Math.pow(2, z));
@@ -50,6 +59,17 @@ function calculateTileIntersections(geojson) {
       });
     }
   });
+
+  // Вычисление центра карты
+  const centerLat = (minLat + maxLat) / 2;
+  const centerLon = (minLon + maxLon) / 2;
+  mapCenter = [centerLat, centerLon];
+
+  // Вычисление масштаба карты
+  const latDiff = maxLat - minLat;
+  const lonDiff = maxLon - minLon;
+  const maxDiff = Math.max(latDiff, lonDiff);
+  mapZoom = Math.floor(8 - Math.log(maxDiff) / Math.log(2));
 }
 
 // Инициализация кэша при запуске сервера
@@ -122,6 +142,14 @@ app.get('/tiles/:z/:x/:y.png', async (req, res) => {
   } catch (err) {
     res.status(500).send(err.message);
   }
+});
+
+// Маршрут для получения центра и масштаба карты
+app.get('/map-info', (req, res) => {
+  res.json({
+    center: mapCenter,
+    zoom: mapZoom
+  });
 });
 
 // Статическая папка для клиентской части

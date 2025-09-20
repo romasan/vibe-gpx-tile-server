@@ -16,16 +16,20 @@
   <div id="map"></div>
   <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
   <script>
-    const map = L.map('map').setView([51.505, -0.09], 13);
+    fetch('/map-info')
+      .then(response => response.json())
+      .then(data => {
+        const map = L.map('map').setView(data.center, data.zoom);
 
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-      maxZoom: 19,
-    }).addTo(map);
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+          maxZoom: 19,
+        }).addTo(map);
 
-    L.tileLayer('/tiles/{z}/{x}/{y}.png', {
-      maxZoom: 19,
-      opacity: 0.7
-    }).addTo(map);
+        L.tileLayer('/tiles/{z}/{x}/{y}.png', {
+          maxZoom: 19,
+          opacity: 0.7
+        }).addTo(map);
+      });
   </script>
 </body>
 </html>
