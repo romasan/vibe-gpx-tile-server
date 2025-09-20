@@ -8,6 +8,14 @@ const { DOMParser } = require('xmldom');
 // Путь к папке с GPX-файлами
 const gpxDir = path.join(__dirname, 'gpx-files');
 
+// Путь к папке для хранения кэшированных тайлов
+const tileCacheDir = path.join(__dirname, 'tile-cache');
+
+// Создание папки для кэшированных тайлов, если она не существует
+if (!fs.existsSync(tileCacheDir)) {
+  fs.mkdirSync(tileCacheDir, { recursive: true });
+}
+
 // Кэш для данных GeoJSON
 let geojsonCache = null;
 
@@ -63,6 +71,11 @@ async function renderTile(z, x, y) {
   return image.composite([{ input: Buffer.from(svg), blend: 'over' }]).png().toBuffer();
 }
 
+// Функция для получения пути кэшированного тайла
+function getTilePath(z, x, y) {
+  return path.join(tileCacheDir, `${z}-${x}-${y}.png`);
+}
+
 const app = express();
 const port = 80;
 
@@ -72,8 +85,17 @@ initializeCache();
 // Маршрут для рендеринга тайлов
 app.get('/tiles/:z/:x/:y.png', async (req, res) => {
   const { z, x, y } = req.params;
+  const tilePath = getTilePath(z, x, y);
+
+  // Проверка наличия кэшированного тайла
+  if (fs.existsSync(tilePath)) {
+    res.sendFile(tilePath);
+    return;
+  }
+
   try {
     const tile = await renderTile(parseInt(z), parseInt(x), parseInt(y));
+    fs.writeFileSync(tilePath, tile);
     res.setHeader('Content-Type', 'image/png');
     res.send(tile);
   } catch (err) {
