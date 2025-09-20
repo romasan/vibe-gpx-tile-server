@@ -8,6 +8,9 @@ const { DOMParser } = require('xmldom');
 // Путь к папке с GPX-файлами
 const gpxDir = path.join(__dirname, 'gpx-files');
 
+// Кэш для данных GeoJSON
+let geojsonCache = null;
+
 // Чтение и преобразование GPX в GeoJSON
 function loadGPXFiles() {
   const files = fs.readdirSync(gpxDir).filter(file => file.endsWith('.gpx'));
@@ -20,10 +23,15 @@ function loadGPXFiles() {
   return { type: 'FeatureCollection', features: geojsonFeatures };
 }
 
+// Инициализация кэша при запуске сервера
+function initializeCache() {
+  geojsonCache = loadGPXFiles();
+}
+
 // Функция для рендеринга тайлов
 async function renderTile(z, x, y) {
   const tileSize = 256;
-  const geojson = loadGPXFiles();
+  const geojson = geojsonCache;
 
   // Создание пустого изображения
   const image = sharp({
@@ -57,6 +65,9 @@ async function renderTile(z, x, y) {
 
 const app = express();
 const port = 80;
+
+// Инициализация кэша перед запуском сервера
+initializeCache();
 
 // Маршрут для рендеринга тайлов
 app.get('/tiles/:z/:x/:y.png', async (req, res) => {
