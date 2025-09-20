@@ -18,6 +18,7 @@ if (!fs.existsSync(tileCacheDir)) {
 
 // Кэш для данных GeoJSON
 let geojsonCache = null;
+let tileFeatureMap = {};
 
 // Чтение и преобразование GPX в GeoJSON
 function loadGPXFiles() {
@@ -31,15 +32,37 @@ function loadGPXFiles() {
   return { type: 'FeatureCollection', features: geojsonFeatures };
 }
 
+// Функция для вычисления пересечений маршрутов с тайлами
+function calculateTileIntersections(geojson) {
+  geojson.features.forEach((feature, featureIndex) => {
+    if (feature.geometry.type === 'LineString') {
+      feature.geometry.coordinates.forEach(coord => {
+        const [lon, lat] = coord;
+        for (let z = 0; z <= 19; z++) {
+          const tileX = Math.floor(((lon + 180) / 360) * Math.pow(2, z));
+          const tileY = Math.floor(((1 - Math.log(Math.tan(lat * Math.PI / 180) + 1 / Math.cos(lat * Math.PI / 180)) / Math.PI) / 2) * Math.pow(2, z));
+          const tileKey = `${z}-${tileX}-${tileY}`;
+          if (!tileFeatureMap[tileKey]) {
+            tileFeatureMap[tileKey] = new Set();
+          }
+          tileFeatureMap[tileKey].add(featureIndex);
+        }
+      });
+    }
+  });
+}
+
 // Инициализация кэша при запуске сервера
 function initializeCache() {
   geojsonCache = loadGPXFiles();
+  calculateTileIntersections(geojsonCache);
 }
 
 // Функция для рендеринга тайлов
 async function renderTile(z, x, y) {
   const tileSize = 256;
-  const geojson = geojsonCache;
+  const tileKey = `${z}-${x}-${y}`;
+  const featuresToRender = tileFeatureMap[tileKey] || new Set();
 
   // Создание пустого изображения
   const image = sharp({
@@ -52,18 +75,16 @@ async function renderTile(z, x, y) {
   });
 
   // Рендеринг маршрутов
-  const svgPaths = geojson.features.map(feature => {
-    if (feature.geometry.type === 'LineString') {
-      const path = feature.geometry.coordinates.map(coord => {
-        const [lon, lat] = coord;
-        const px = ((lon + 180) / 360) * Math.pow(2, z) * tileSize - x * tileSize;
-        const py = ((1 - Math.log(Math.tan(lat * Math.PI / 180) + 1 / Math.cos(lat * Math.PI / 180)) / Math.PI) / 2) * Math.pow(2, z) * tileSize - y * tileSize;
-        return `${px},${py}`;
-      }).join(' ');
+  const svgPaths = Array.from(featuresToRender).map(featureIndex => {
+    const feature = geojsonCache.features[featureIndex];
+    const path = feature.geometry.coordinates.map(coord => {
+      const [lon, lat] = coord;
+      const px = ((lon + 180) / 360) * Math.pow(2, z) * tileSize - x * tileSize;
+      const py = ((1 - Math.log(Math.tan(lat * Math.PI / 180) + 1 / Math.cos(lat * Math.PI / 180)) / Math.PI) / 2) * Math.pow(2, z) * tileSize - y * tileSize;
+      return `${px},${py}`;
+    }).join(' ');
 
-      return `<polyline points="${path}" stroke="red" stroke-width="2" fill="none"/>`;
-    }
-    return '';
+    return `<polyline points="${path}" stroke="red" stroke-width="2" fill="none"/>`;
   }).join('');
 
   const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${tileSize}" height="${tileSize}">${svgPaths}</svg>`;
