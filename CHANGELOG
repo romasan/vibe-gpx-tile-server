@@ -50,3 +50,6 @@ This module is not supported, and leaks memory.
     at Layer.handleRequest (/Users/r.bauer/Bag/gpx-tile-server/node_modules/router/lib/layer.js:152:17)
     at /Users/r.bauer/Bag/gpx-tile-server/node_modules/router/index.js:295:15
 ===
+на странице админ в начале страницы нужно добавить ссылку "назад" которая будет вести в корень.
+кнопка "загрузить" на странице админ, не должна быть во всю ширину страницы как сейчас.
+цвет линии которой рендерятся треки нужно поменять на синий.

@@ -107,7 +107,7 @@ async function renderTile(z, x, y) {
       return `${px},${py}`;
     }).join(' ');
 
-    return `<polyline points="${path}" stroke="red" stroke-width="2" fill="none"/>`;
+    return `<polyline points="${path}" stroke="blue" stroke-width="2" fill="none"/>`; // Изменение цвета на синий
   }).join('');
 
   const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${tileSize}" height="${tileSize}">${svgPaths}</svg>`;
