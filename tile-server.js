@@ -37,6 +37,7 @@ function loadGPXFiles() {
 
 // Функция для вычисления пересечений маршрутов с тайлами
 function calculateTileIntersections(geojson) {
+  tileFeatureMap = {}; // Очистка карты перед пересчетом
   let minLat = Infinity, maxLat = -Infinity, minLon = Infinity, maxLon = -Infinity;
 
   geojson.features.forEach((feature, featureIndex) => {
@@ -98,6 +99,7 @@ async function renderTile(z, x, y) {
   // Рендеринг маршрутов
   const svgPaths = Array.from(featuresToRender).map(featureIndex => {
     const feature = geojsonCache.features[featureIndex];
+    if (!feature) return ''; // Проверка на существование данных
     const path = feature.geometry.coordinates.map(coord => {
       const [lon, lat] = coord;
       const px = ((lon + 180) / 360) * Math.pow(2, z) * tileSize - x * tileSize;
@@ -113,7 +115,7 @@ async function renderTile(z, x, y) {
   return image.composite([{ input: Buffer.from(svg), blend: 'over' }]).png().toBuffer();
 }
 
-// Функция для получения пути кэшированного тайла
+// Функция для получения пути к��шированного тайла
 function getTilePath(z, x, y) {
   return path.join(tileCacheDir, `${z}-${x}-${y}.png`);
 }
@@ -175,6 +177,27 @@ app.post('/upload', upload.array('gpxFiles'), (req, res) => {
   initializeCache();
 
   res.send('Файлы загружены и кэш обновлен.');
+});
+
+// Маршрут для получения списка GPX-файлов
+app.get('/gpx-files', (req, res) => {
+  const files = fs.readdirSync(gpxDir).filter(file => file.endsWith('.gpx'));
+  res.json(files);
+});
+
+// Маршрут для удаления GPX-файла
+app.delete('/delete-gpx/:fileName', (req, res) => {
+  const fileName = req.params.fileName;
+  const filePath = path.join(gpxDir, fileName);
+
+  if (fs.existsSync(filePath)) {
+    fs.unlinkSync(filePath);
+    clearTileCache();
+    initializeCache();
+    res.send('Файл удален и кэш обновлен.');
+  } else {
+    res.status(404).send('Файл не найден.');
+  }
 });
 
 // Обслуживание страницы администрирования

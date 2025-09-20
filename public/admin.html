@@ -16,14 +16,73 @@
       display: flex;
       flex-direction: column;
       gap: 10px;
+      margin-bottom: 20px;
+    }
+    ul {
+      list-style-type: none;
+      padding: 0;
+    }
+    li {
+      margin-bottom: 10px;
+    }
+    button {
+      margin-left: 10px;
     }
   </style>
 </head>
 <body>
   <h1>Загрузка GPX-файлов</h1>
-  <form action="/upload" method="post" enctype="multipart/form-data">
+  <form id="uploadForm" action="/upload" method="post" enctype="multipart/form-data">
     <input type="file" name="gpxFiles" multiple accept=".gpx">
     <button type="submit">Загрузить</button>
   </form>
+
+  <h2>Список GPX-файлов</h2>
+  <ul id="fileList"></ul>
+
+  <script>
+    function loadFileList() {
+      fetch('/gpx-files')
+        .then(response => response.json())
+        .then(files => {
+          const fileList = document.getElementById('fileList');
+          fileList.innerHTML = '';
+          files.forEach(file => {
+            const li = document.createElement('li');
+            li.textContent = file;
+            const deleteButton = document.createElement('button');
+            deleteButton.textContent = 'Удалить';
+            deleteButton.onclick = () => deleteFile(file);
+            li.appendChild(deleteButton);
+            fileList.appendChild(li);
+          });
+        });
+    }
+
+    function deleteFile(fileName) {
+      fetch(`/delete-gpx/${fileName}`, { method: 'DELETE' })
+        .then(response => response.text())
+        .then(message => {
+          alert(message);
+          loadFileList();
+        });
+    }
+
+    document.getElementById('uploadForm').onsubmit = function(event) {
+      event.preventDefault();
+      const formData = new FormData(this);
+      fetch('/upload', {
+        method: 'POST',
+        body: formData
+      })
+      .then(response => response.text())
+      .then(message => {
+        alert(message);
+        loadFileList();
+      });
+    };
+
+    loadFileList();
+  </script>
 </body>
 </html>
