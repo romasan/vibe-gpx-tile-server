@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Admin - Upload GPX Files</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: 20px;
+    }
+    h1 {
+      margin-bottom: 20px;
+    }
+    form {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+  </style>
+</head>
+<body>
+  <h1>Загрузка GPX-файлов</h1>
+  <form action="/upload" method="post" enctype="multipart/form-data">
+    <input type="file" name="gpxFiles" multiple accept=".gpx">
+    <button type="submit">Загрузить</button>
+  </form>
+</body>
+</html>

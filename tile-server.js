@@ -4,6 +4,7 @@ const fs = require('fs');
 const sharp = require('sharp');
 const toGeoJSON = require('@mapbox/togeojson');
 const { DOMParser } = require('xmldom');
+const multer = require('multer');
 
 // Путь к папке с GPX-файлами
 const gpxDir = path.join(__dirname, 'gpx-files');
@@ -117,11 +118,21 @@ function getTilePath(z, x, y) {
   return path.join(tileCacheDir, `${z}-${x}-${y}.png`);
 }
 
+// Удаление устаревших тайлов
+function clearTileCache() {
+  fs.readdirSync(tileCacheDir).forEach(file => {
+    fs.unlinkSync(path.join(tileCacheDir, file));
+  });
+}
+
 const app = express();
 const port = 80;
 
 // Инициализация кэша перед запуском сервера
 initializeCache();
+
+// Настройка multer для обработки загрузки файлов
+const upload = multer({ dest: 'uploads/' });
 
 // Маршрут для рендеринга тайлов
 app.get('/tiles/:z/:x/:y.png', async (req, res) => {
@@ -150,6 +161,25 @@ app.get('/map-info', (req, res) => {
     center: mapCenter,
     zoom: mapZoom
   });
+});
+
+// Маршрут для загрузки GPX-файлов
+app.post('/upload', upload.array('gpxFiles'), (req, res) => {
+  req.files.forEach(file => {
+    const targetPath = path.join(gpxDir, file.originalname);
+    fs.renameSync(file.path, targetPath);
+  });
+
+  // Очистка кэша тайлов и обновление данных
+  clearTileCache();
+  initializeCache();
+
+  res.send('Файлы загружены и кэш обновлен.');
+});
+
+// Обслуживание страницы администрирования
+app.get('/admin', (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'admin.html'));
 });
 
 // Статическая папка для клиентской части
