@@ -115,7 +115,7 @@ async function renderTile(z, x, y) {
   return image.composite([{ input: Buffer.from(svg), blend: 'over' }]).png().toBuffer();
 }
 
-// Функция для получения пути к��шированного тайла
+// Функция для получения пути кэшированного тайла
 function getTilePath(z, x, y) {
   return path.join(tileCacheDir, `${z}-${x}-${y}.png`);
 }
@@ -139,10 +139,19 @@ const upload = multer({ dest: 'uploads/' });
 // Маршрут для рендеринга тайлов
 app.get('/tiles/:z/:x/:y.png', async (req, res) => {
   const { z, x, y } = req.params;
+  const tileKey = `${z}-${x}-${y}`;
+
+  // Проверка, есть ли что рендерить
+  if (!tileFeatureMap[tileKey] || tileFeatureMap[tileKey].size === 0) {
+    res.status(204).send(); // Нет контента для рендеринга
+    return;
+  }
+
   const tilePath = getTilePath(z, x, y);
 
   // Проверка наличия кэшированного тайла
   if (fs.existsSync(tilePath)) {
+    res.setHeader('Cache-Control', 'public, max-age=600'); // Кэширование в браузере на 10 минут
     res.sendFile(tilePath);
     return;
   }
@@ -151,6 +160,7 @@ app.get('/tiles/:z/:x/:y.png', async (req, res) => {
     const tile = await renderTile(parseInt(z), parseInt(x), parseInt(y));
     fs.writeFileSync(tilePath, tile);
     res.setHeader('Content-Type', 'image/png');
+    res.setHeader('Cache-Control', 'public, max-age=600'); // Кэширование в браузере на 10 минут
     res.send(tile);
   } catch (err) {
     res.status(500).send(err.message);
