@@ -1,4 +1,7 @@
 node_modules/
 gpx-files/
-tile-cache/
+cache/
+uploads/
 .DS_Store
+*.json
+.env
