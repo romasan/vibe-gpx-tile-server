@@ -168,7 +168,7 @@ function renderTile(z, x, y) {
 			return `${px},${py}`;
 		}).join(' ');
 
-		return `<polyline points="${path}" stroke="blue" stroke-width="2" fill="none"/>`; // Изменение цвета на синий
+		return `<polyline points="${path}" stroke="blue" stroke-width="2" fill="none" />`;
 	}).join('');
 
 	const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${tileSize}" height="${tileSize}">${svgPaths}</svg>`;
@@ -182,13 +182,15 @@ function renderTile(z, x, y) {
 
 // Функция для получения пути кэшированного тайла
 function getTilePath(z, x, y) {
-	return path.join(tileCacheDir, `${z}-${x}-${y}.png`);
+	return path.join(tileCacheDir, `gpx-${z}-${x}-${y}.png`);
 }
 
 // Удаление устаревших тайлов
 function clearTileCache() {
 	fs.readdirSync(tileCacheDir).forEach(file => {
-		fs.unlinkSync(path.join(tileCacheDir, file));
+		if (file.includes('gpx-')) {
+			fs.unlinkSync(path.join(tileCacheDir, file));
+		}
 	});
 }
 

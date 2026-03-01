@@ -3,5 +3,6 @@ gpx-files/
 cache/
 uploads/
 .DS_Store
-*.json
 .env
+*.json
+*.zip

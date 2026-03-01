@@ -7,7 +7,7 @@ function simpleHash(str) {
   }
 
   return hash;
-}
+};
 
 module.exports = {
     simpleHash,

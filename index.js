@@ -7,6 +7,7 @@ const { list } = require('./api/list');
 const { upload } = require('./api/upload');
 const { info } = require('./api/info');
 const { tile } = require('./api/tile');
+const { osm } = require('./api/osm');
 
 const app = express();
 const port = 8080;
@@ -14,6 +15,7 @@ const port = 8080;
 // Статическая папка для клиентской части
 app.use(express.static(path.join(__dirname, 'public')));
 
+app.get('/osm/:z/:x/:y.png', osm);
 app.get('/tile/:z/:x/:y.png', tile);
 app.get('/info', info);
 
