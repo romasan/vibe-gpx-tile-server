@@ -9,6 +9,17 @@ function debounce(func, delay = 100) {
 	};
 };
 
+function throttle(func, limit = 16) {
+	let inThrottle;
+	return function (...args) {
+		if (!inThrottle) {
+			func.apply(this, args);
+			inThrottle = true;
+			setTimeout(() => inThrottle = false, limit);
+		}
+	};
+}
+
 // function getRandomHexColor() {
 // 	return '#' + Math.floor(Math.random() * 16777215).toString(16).padStart(6, '0');
 // }
@@ -44,10 +55,6 @@ class MapRenderer {
 
 		this.debounceRender = debounce(() => this.render());
 
-		this.init();
-	}
-
-	init() {
 		this.loadMapInfo();
 		this.setupEventListeners();
 
@@ -82,12 +89,29 @@ class MapRenderer {
 
 	// Преобразование географических координат в пиксели
 	latLngToPixel(lat, lng, zoom = this.zoom) {
-		const _scale = (1 + (this.zoomFloat % 1));
-		const scale = Math.pow(2, zoom);
-		const x = ((lng + 180) / 360) * scale * this.tileSize * _scale;
-		const y = ((1 - Math.log(Math.tan(lat * Math.PI / 180) + 1 / Math.cos(lat * Math.PI / 180)) / Math.PI) / 2) * scale * this.tileSize * _scale;
+		const scale = Math.pow(2, zoom) * (1 + (this.zoomFloat % 1));
+		const x = ((lng + 180) / 360) * scale * this.tileSize;
+		const y = ((1 - Math.log(Math.tan(lat * Math.PI / 180) + 1 / Math.cos(lat * Math.PI / 180)) / Math.PI) / 2) * scale * this.tileSize;
 
 		return [x, y];
+	}
+
+	// Преобразование пиксельных координат в географические
+	pixelToLatLng(x, y, zoom = this.zoomFloat >= 0 ? this.zoomFloat : this.zoom) {
+		const worldSize = Math.pow(2, zoom) * this.tileSize;
+		
+		// Долгота: линейное преобразование
+		const lng = (x / worldSize) * 360 - 180;
+		
+		// Широта: обратная проекция Меркатора
+		const n = Math.PI - (2 * Math.PI * y) / worldSize;
+		const latRad = Math.atan(Math.sinh(n));
+		const lat = latRad * 180 / Math.PI;
+		
+		// Ограничение широты до допустимого диапазона Web Mercator
+		const clampedLat = Math.max(-85.0511, Math.min(85.0511, lat));
+		
+		return [clampedLat, lng];
 	}
 
 	async fetchImage(url) {
@@ -129,8 +153,11 @@ class MapRenderer {
 	renderTiles(ctx, route) {
 		ctx.clearRect(0, 0, this.width, this.height);
 
-		const scale = (1 + (this.zoomFloat % 1));
+		const zoomFloat = this.zoomFloat > 0 ? this.zoomFloat : this.zoom;
+		const scale = (1 + (zoomFloat % 1));
 		const tileSize = this.tileSize * scale;
+
+		const numTiles = Math.floor(Math.pow(2, this.zoom)); // Количество тайлов по оси при данном зуме
 
 		const tilesPerRow = Math.ceil(this.width / tileSize) + 1;
 		const tilesPerCol = Math.ceil(this.height / tileSize) + 1;
@@ -141,20 +168,54 @@ class MapRenderer {
 		// Вычисляем центральные координаты в пикселях
 		const centerPixel = this.latLngToPixel(this.center[0], this.center[1]);
 
-		// Вычисляем смещение для центрирования
-		const offsetX = centerX - centerPixel[0];
-		const offsetY = centerY - centerPixel[1];
-
 		const list = [];
 
 		// Рисуем тайлы OpenStreetMap
 		for (let y = 0; y < tilesPerCol; y++) {
 			for (let x = 0; x < tilesPerRow; x++) {
-				const tileX = Math.floor((x * tileSize - offsetX) / tileSize);
-				const tileY = Math.floor((y * tileSize - offsetY) / tileSize);
+				let offsetX = centerX - centerPixel[0];
+				let offsetY = centerY - centerPixel[1];
+				let tileX = Math.floor((x * tileSize - offsetX) / tileSize);
+				let tileY = Math.floor((y * tileSize - offsetY) / tileSize);
+
+				// if (ctx.canvas.id.includes('osm')) {
+				// 	// const [, , z, x, y] = url.split(/[\/\.]+/ig);
+
+				// 	const x1 = Math.round(tileX * tileSize + offsetX);
+				// 	const y1 = Math.round(tileY * tileSize + offsetY);
+				// 	const x2 = x1 + Math.ceil(tileSize);
+				// 	const y2 = y1 + Math.ceil(tileSize);
+
+				// 	ctx.strokeStyle = 'green';
+				// 	ctx.lineWidth = 1;
+
+				// 	ctx.beginPath();
+				// 	ctx.moveTo(x1, y1 + 30);
+				// 	ctx.lineTo(x1, y1);
+				// 	ctx.lineTo(x1 + 30, y1);
+				// 	ctx.stroke();
+
+				// 	ctx.beginPath();
+				// 	ctx.moveTo(x2, y1 + 30);
+				// 	ctx.lineTo(x2, y1);
+				// 	ctx.lineTo(x2 - 30, y1);
+				// 	ctx.stroke();
+
+				// 	ctx.beginPath();
+				// 	ctx.moveTo(x1 + 30, y2);
+				// 	ctx.lineTo(x1, y2);
+				// 	ctx.lineTo(x1, y2 - 30);
+				// 	ctx.stroke();
+
+				// 	ctx.beginPath();
+				// 	ctx.moveTo(x2, y2 - 30);
+				// 	ctx.lineTo(x2, y2);
+				// 	ctx.lineTo(x2 - 30, y2);
+				// 	ctx.stroke();
+				// }
 
 				// Проверяем, чтобы координаты тайла были корректными
-				if (tileX >= 0 && tileY >= 0) {
+				if (tileX >= 0 && tileY >= 0 && tileX < numTiles && tileY < numTiles) {
 					const url = route(this.zoom, tileX, tileY);
 
 					list.push(url);
@@ -173,16 +234,6 @@ class MapRenderer {
 						}
 					}
 
-					// if (url.includes('osm')) {
-					// 	const [, , z, x, y] = url.split(/[\/\.]+/ig);
-
-					// 	ctx.fillText(
-					// 		`${z}-${x}-${y} (${String(!!imgCache)})`,
-					// 		Math.round(tileX * this.tileSize + offsetX),
-					// 		Math.round(tileY * this.tileSize + offsetY) + 10,
-					// 	);
-					// }
-
 					if (imgCache) {
 						continue;
 					}
@@ -197,6 +248,46 @@ class MapRenderer {
 				}
 			}
 		}
+
+// 		if (ctx.canvas.id.includes('osm')) {
+// 			const centerX = Math.floor(this.width / 2);
+// 			const centerY = Math.floor(this.height / 2);
+
+// 			ctx.strokeStyle = 'red';
+// 			ctx.lineWidth = 1;
+
+// 			ctx.beginPath();
+// 			ctx.moveTo(centerX, centerY - 10);
+// 			ctx.lineTo(centerX, centerY + 10);
+// 			ctx.stroke();
+
+// 			ctx.beginPath();
+// 			ctx.moveTo(centerX - 10, centerY);
+// 			ctx.lineTo(centerX + 10, centerY);
+// 			ctx.stroke();
+
+// 			ctx.fillText(
+// 				this.center.join(', '),
+// 				Math.floor(centerX),
+// 				Math.floor(centerY),
+// 			);
+
+// 			ctx.textAlign = 'right';
+// 			`${this.center.join(', ')}
+// width = ${this.width}
+// height = ${this.height}
+// zoom = ${this.zoom}
+// zoomFloat = ${this.zoomFloat}
+// tileSize = ${tileSize}
+// numTiles = ${numTiles}
+// tilesPerRow = ${tilesPerRow}
+// tilesPerCol = ${tilesPerCol}
+// centerPixel = ${centerPixel.join(', ')}
+// `
+// 			.split('\n').forEach((line, index) => {
+// 				ctx.fillText(line, this.width - 5, 10 + index * 10);
+// 			});
+// 		}
 
 		return list;
 	}
@@ -242,8 +333,11 @@ class MapRenderer {
 				const lngPerPixel = 360 / (scale * this.tileSize);
 
 				// Применяем смещение к центру карты (в обратном направлении)
-				this.center[0] += dy * latPerPixel;
-				this.center[1] -= dx * lngPerPixel;
+				this.center[0] = Math.max(-85, Math.min(85, this.center[0] + dy * latPerPixel));
+				this.center[1] = Math.max(-180, Math.min(180, this.center[1] - dx * lngPerPixel));
+
+				// this.center[0] += dy * latPerPixel;
+				// this.center[1] -= dx * lngPerPixel;
 
 				this.lastX = e.clientX;
 				this.lastY = e.clientY;
@@ -252,7 +346,37 @@ class MapRenderer {
 			}
 		});
 
-		this.gpxCanvas.addEventListener('mouseup', () => {
+		this.gpxCanvas.addEventListener('mouseup', (e) => {
+
+			// const centerX = this.width / 2;
+			// const centerY = this.height / 2;
+
+			// const dx = e.clientX - centerX;
+			// const dy = e.clientY - centerY;
+
+			// const scale = Math.pow(2, this.zoom);
+			// const lpp = 360 / (scale * this.tileSize);
+
+			// // Применяем смещение к центру карты (в обратном направлении)
+			// const newCenterY = this.center[0] - dy * lpp;
+			// const newCenterX = this.center[1] + dx * lpp;
+
+			// // this.center[0] -= dy * latPerPixel * (e.deltaY > 0 ? -1 : 1) * .05;
+			// // this.center[1] += dx * lngPerPixel * (e.deltaY > 0 ? -1 : 1) * .05;
+
+			// console.log('==== mouseup', {
+			// 	dx,
+			// 	dy,
+			// 	zoom: this.zoomFloat,
+			// 	newCenterX,
+			// 	newCenterY,
+			// });
+
+			// this.center[0] = newCenterY;
+			// this.center[1] = newCenterX;
+
+			this.render();
+
 			this.isDragging = false;
 			this.gpxCanvas.style.cursor = 'default';
 		});
@@ -262,14 +386,25 @@ class MapRenderer {
 			this.gpxCanvas.style.cursor = 'default';
 		});
 
-		this.gpxCanvas.addEventListener('wheel', (e) => {
+		const wheelCallback = throttle((e) => {
 			e.preventDefault();
+
+			// const centerX = this.width / 2;
+			// const centerY = this.height / 2;
+			// const scale = Math.pow(2, this.zoom);
+			// const latPerPixel = 360 / (scale * this.tileSize);
+			// const lngPerPixel = 360 / (scale * this.tileSize);
+			// const dx = e.clientX - centerX;
+			// const dy = e.clientY - centerY;
+
+			// this.center[0] -= dy * latPerPixel * (e.deltaY > 0 ? -1 : 1) * .05;
+			// this.center[1] += dx * lngPerPixel * (e.deltaY > 0 ? -1 : 1) * .05;
 
 			if (this.zoomFloat < 0) {
 				this.zoomFloat = this.zoom;
 			}
 
-			this.zoomFloat = Math.max(1, Math.min(19,
+			this.zoomFloat = Math.max(2, Math.min(19,
 				this.zoomFloat + (e.deltaY > 0 ? -.1 : .1)
 			));
 
@@ -281,6 +416,8 @@ class MapRenderer {
 
 			this.render();
 		});
+
+		this.gpxCanvas.addEventListener('wheel', wheelCallback);
 	}
 }
 

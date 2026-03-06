@@ -168,10 +168,12 @@ function renderTile(z, x, y) {
 			return `${px},${py}`;
 		}).join(' ');
 
-		return `<polyline points="${path}" stroke="blue" stroke-width="2" fill="none" />`;
+		return `<polyline points="${path}" stroke="blue" stroke-width="1" fill="none" />`;
 	}).join('');
 
 	const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${tileSize}" height="${tileSize}">${svgPaths}</svg>`;
+
+	// fs.writeFileSync(`${__dirname}/cache/gpx-${z}-${x}-${y}.svg`, svg);
 
 	console.log(`render tile "${tileKey}" at ${Date.now() - time} ms.`);
 
