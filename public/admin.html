@@ -40,7 +40,7 @@
 <body>
   <a href="/">Назад</a>
   <h1>Загрузка GPX-файлов</h1>
-  <form id="uploadForm" action="/upload" method="post" enctype="multipart/form-data">
+  <form id="uploadForm" action="/admin/upload" method="post" enctype="multipart/form-data">
     <input type="file" name="gpxFiles" multiple accept=".gpx">
     <button type="submit">Загрузить</button>
   </form>
@@ -50,17 +50,21 @@
 
   <script>
     function loadFileList() {
-      fetch('/gpx-files')
+      fetch('/admin/list')
         .then(response => response.json())
         .then(files => {
           const fileList = document.getElementById('fileList');
+
           fileList.innerHTML = '';
+
           files.forEach(file => {
             const li = document.createElement('li');
-            li.textContent = file;
             const deleteButton = document.createElement('button');
+
+            li.textContent = file;
             deleteButton.textContent = 'Удалить';
             deleteButton.onclick = () => deleteFile(file);
+
             li.appendChild(deleteButton);
             fileList.appendChild(li);
           });
@@ -68,7 +72,7 @@
     }
 
     function deleteFile(fileName) {
-      fetch(`/delete-gpx/${fileName}`, { method: 'DELETE' })
+      fetch(`/admin/remove-gpx/${fileName}`, { method: 'DELETE' })
         .then(response => response.text())
         .then(message => {
           alert(message);

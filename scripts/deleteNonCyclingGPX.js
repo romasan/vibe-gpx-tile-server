@@ -3,7 +3,7 @@ const path = require('path');
 const { DOMParser } = require('xmldom');
 
 // Путь к папке с GPX файлами
-const directoryPath = './gpx-files';
+const directoryPath = '../gpx-files';
 
 // Функция для проверки, содержит ли файл тип "cycling"
 async function checkIfCycling(filePath) {
