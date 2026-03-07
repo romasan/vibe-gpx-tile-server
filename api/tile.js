@@ -4,10 +4,24 @@ const {
 	getTileFeatureMap,
 	getTilePath,
 } = require('../tiles');
+const { getSession } = require('../session');
 
 const tile = async (req, res) => {
+	const token = req.cookies.token;
+	const session = getSession(token);
+	const id = session?.id;
+
+	// TODO
+	// if (!id) {
+	// 	res.status(204).send();
+
+	// 	return;
+	// }
+
 	const { z, x, y } = req.params;
 	const tileKey = `${z}-${x}-${y}`;
+
+	console.log(`Get prite: ${z}-${x}-${y} for ID: "${id}"`)
 
 	const tileFeatureMap = getTileFeatureMap();
 

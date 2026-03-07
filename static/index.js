@@ -25,7 +25,9 @@ function throttle(func, limit = 16) {
 // }
 
 class MapRenderer {
-	constructor() {
+	constructor(data) {
+		console.log('==== constructor', data);
+
 		this.osmCanvas = document.getElementById('osm-canvas');
 		this.gpxCanvas = document.getElementById('gpx-canvas');
 		this.osmCtx = this.osmCanvas.getContext('2d');
@@ -40,9 +42,10 @@ class MapRenderer {
 		this.gpxCanvas.width = this.width;
 		this.gpxCanvas.height = this.height;
 
-		this.center = [0, 0];
-		this.zoom = 0;
-		this.zoomFloat = -1;
+		this.center = data?.center || [0, 0];
+		this.zoom = data?.zoom || 2;
+
+		this.zoomFloat = this.zoom;
 		this.tileSize = 256;
 		this.isDragging = false;
 		this.lastX = 0;
@@ -61,6 +64,8 @@ class MapRenderer {
 		const resizeCallback = debounce(() => this.handleResize());
 
 		window.addEventListener('resize', resizeCallback);
+
+		this.render();
 	}
 
 	async loadMapInfo() {
@@ -153,8 +158,7 @@ class MapRenderer {
 	renderTiles(ctx, route) {
 		ctx.clearRect(0, 0, this.width, this.height);
 
-		const zoomFloat = this.zoomFloat > 0 ? this.zoomFloat : this.zoom;
-		const scale = (1 + (zoomFloat % 1));
+		const scale = (1 + (this.zoomFloat % 1));
 		const tileSize = this.tileSize * scale;
 
 		const numTiles = Math.floor(Math.pow(2, this.zoom)); // Количество тайлов по оси при данном зуме
@@ -422,6 +426,23 @@ class MapRenderer {
 }
 
 // Инициализируем карту при загрузке страницы
-window.addEventListener('load', () => {
-	const map = new MapRenderer();
+window.addEventListener('load', async () => {
+	const tg = window?.Telegram?.WebApp;
+
+	const resp = await fetch('/start', {
+		method: 'POST',
+		headers: {
+			'Content-Type': 'application/x-www-form-urlencoded',
+		},
+		credentials: 'include',
+		body: tg?.initData,
+	});
+
+	const data =  await resp.json();
+
+	tg?.expand();
+	// tg.setBackgroundColor('#d9d7ff');
+	// tg.setHeaderColor('#d9d7ff');
+
+	new MapRenderer(data);
 });
