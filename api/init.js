@@ -1,3 +1,4 @@
+const crypto = require('crypto');
 const { v4: uuid } = require('uuid');
 const {
 	getMapInfo,
@@ -70,9 +71,7 @@ const init = (req, res) => {
 	const success = checkTelegramAuth(params);
 
 	if (success) {
-		const token = getToken(req);
-
-		addSession(token, user);
+		addSession(newSession, user);
 
 		res.json(getMapInfo());
 
