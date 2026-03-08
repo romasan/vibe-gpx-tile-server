@@ -71,7 +71,7 @@ const init = (req, res) => {
 
 		prefetchCache(user.id);
 
-		res.json(getMapInfo(id));
+		res.json(getMapInfo(user.id));
 
 		return;
 	}
