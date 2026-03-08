@@ -186,6 +186,8 @@ function calculateTileIntersections(geojson) {
 
 // Инициализация кэша при запуске сервера
 function initializeCache() {
+	const time = Date.now();
+
 	fs.readdirSync(gpxDir)
 		.forEach((id) => {
 			if (!hasCache(id)) {
@@ -205,13 +207,13 @@ function initializeCache() {
 			} else {
 				console.log('load from cache');
 			}
-		})
-	// foreach all folders with gpx filles
-	// check cache for list of files in folder
+		});
 
-	// if need update calc features and intersections
-	// save caches
+	const durationSec = Math.floor((Date.now() - time) / 1000);
+	const min = String(Math.floor(durationSec / 60)).padStart(2, '0');
+	const sec = String(durationSec % 60).padStart(2, '0');
 
+	console.log(`Cache inited at ${min}:${sec}`);
 }
 
 // Функция для рендеринга тайлов
@@ -225,7 +227,7 @@ function renderTile(z, x, y, id) {
 	const time = Date.now();
 
 	const tileKey = `${z}-${x}-${y}`;
-	const featuresToRender = cache[id].tileFeatureMap[tileKey] || [];// new Set();
+	const featuresToRender = cache[id].tileFeatureMap[tileKey] || [];
 
 	// Создание пустого изображения
 	const image = sharp({

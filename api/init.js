@@ -53,8 +53,6 @@ const init = (req, res) => {
 	const success = checkTelegramAuth(params);
 
 	if (success) {
-		addSession(newSession, user);
-
 		let user = {};
 
 		try {
@@ -68,6 +66,8 @@ const init = (req, res) => {
 
 			return;
 		}
+
+		addSession(newSession, user);
 
 		prefetchCache(user.id);
 
