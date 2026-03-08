@@ -9,9 +9,9 @@ const { upload } = require('./api/upload');
 const { init } = require('./api/init');
 const { tile } = require('./api/tile');
 const { osm } = require('./api/osm');
+const { webserver: { port } } = require('./config.json');
 
 const app = express();
-const port = 8080;
 
 app.use(cookieParser());
 app.use(express.text({ type: 'text/plain' }));

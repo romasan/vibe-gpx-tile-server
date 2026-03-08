@@ -32,6 +32,7 @@ const tile = async (req, res) => {
 		return;
 	}
 
+	// const tilePath = getTilePath(id, z, x, y);
 	const tilePath = getTilePath(z, x, y);
 
 	// Проверка наличия кэшированного тайла
