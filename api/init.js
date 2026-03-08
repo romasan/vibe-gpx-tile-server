@@ -2,6 +2,7 @@ const crypto = require('crypto');
 const { v4: uuid } = require('uuid');
 const {
 	getMapInfo,
+	prefetchCache,
 } = require('../tiles');
 const {
 	getSession,
@@ -10,6 +11,7 @@ const {
 const {
 	telegram: {
 		token,
+		debugUserId,
 	},
 } = require('../config.json');
 
@@ -26,13 +28,6 @@ const checkTelegramAuth = (query) => {
 		.update(checkString)
 		.digest('hex');
 
-	console.log('==== checkTelegramAuth', {
-		secret,
-		checkString,
-		hash,
-		query,
-	});
-
 	return hash === query.hash;
 };
 
@@ -41,7 +36,9 @@ const init = (req, res) => {
 	const session = getSession(token);
 
 	if (session) {
-		res.json(getMapInfo());
+		prefetchCache(session.id);
+
+		res.json(getMapInfo(session.id));
 
 		return;
 	}
@@ -53,35 +50,39 @@ const init = (req, res) => {
 	const payload = req.body;
 	const params = Object.fromEntries(new URLSearchParams(payload));
 
-	let user = {};
-
-	try {
-		user = JSON.parse(params.user);
-	} catch (error) {
-		console.log('Telegram mimiapp auth error: Failed parse user data');
-
-		res.json({
-			...getMapInfo(),
-			error: true
-		});
-
-		return;
-	}
-
 	const success = checkTelegramAuth(params);
 
 	if (success) {
 		addSession(newSession, user);
 
-		res.json(getMapInfo());
+		let user = {};
+
+		try {
+			user = JSON.parse(params.user);
+		} catch (error) {
+			console.log('Telegram mimiapp auth error: Failed parse user data');
+
+			res.json({
+				error: true
+			});
+
+			return;
+		}
+
+		prefetchCache(user.id);
+
+		res.json(getMapInfo(id));
 
 		return;
 	}
 
 	console.log('Telegram auth error: Invalid hash');
 
+	if (debugUserId && !params?.user) {
+		prefetchCache(debugUserId);
+	}
+
 	res.json({
-		...getMapInfo(),
 		error: true
 	});
 };

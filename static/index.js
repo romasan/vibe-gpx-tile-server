@@ -26,8 +26,6 @@ function throttle(func, limit = 16) {
 
 class MapRenderer {
 	constructor(data) {
-		console.log('==== constructor', data);
-
 		this.osmCanvas = document.getElementById('osm-canvas');
 		this.gpxCanvas = document.getElementById('gpx-canvas');
 		this.osmCtx = this.osmCanvas.getContext('2d');
@@ -47,7 +45,7 @@ class MapRenderer {
 		this.zoomFloat = this.zoom;
 		this.tileSize = 256;
 
-		this.isDragging = false;
+		this.isDragging = 0;
 		this.lastX = 0;
 		this.lastY = 0;
 		this.lastDistance = 0;
@@ -327,7 +325,7 @@ class MapRenderer {
 				return;
 			}
 
-			this.isDragging = true;
+			this.isDragging = Date.now();
 			this.lastX = e.touches?.[0]?.clientX || e.clientX;
 			this.lastY = e.touches?.[0]?.clientY || e.clientY;
 			this.gpxCanvas.style.cursor = 'grabbing';
@@ -386,6 +384,12 @@ class MapRenderer {
 		};
 
 		const dragEndCallback = (e) => {
+			const dx = (e.touches?.[0]?.clientX || e.clientX) - this.lastX;
+			const dy = (e.touches?.[0]?.clientY || e.clientY) - this.lastY;
+
+			if (Math.abs(dx) + Math.abs(dy) === 0 && (Date.now() - this.isDragging) > 2000) {
+				// TODO show menu
+			}
 
 			// const centerX = this.width / 2;
 			// const centerY = this.height / 2;
@@ -416,7 +420,7 @@ class MapRenderer {
 
 			this.render();
 
-			this.isDragging = false;
+			this.isDragging = 0;
 			this.lastDistance = 0;
 			this.gpxCanvas.style.cursor = 'default';
 		};
