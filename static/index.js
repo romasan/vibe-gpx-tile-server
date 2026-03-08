@@ -32,8 +32,8 @@ class MapRenderer {
 		this.gpxCanvas = document.getElementById('gpx-canvas');
 		this.osmCtx = this.osmCanvas.getContext('2d');
 		this.gpxCtx = this.gpxCanvas.getContext('2d');
-		this.osmCtx.imageSmoothingEnabled = false; 
-		this.gpxCtx.imageSmoothingEnabled = false; 
+		this.osmCtx.imageSmoothingEnabled = false;
+		this.gpxCtx.imageSmoothingEnabled = false;
 
 		this.width = window.innerWidth;
 		this.height = window.innerHeight;
@@ -44,14 +44,13 @@ class MapRenderer {
 
 		this.center = data?.center || [0, 0];
 		this.zoom = data?.zoom || 2;
-
 		this.zoomFloat = this.zoom;
 		this.tileSize = 256;
+
 		this.isDragging = false;
 		this.lastX = 0;
 		this.lastY = 0;
-		this.osmTiles = [];
-		this.gpxTiles = [];
+		this.lastDistance = 0;
 
 		this.cache = new Map();
 		this.loading = new Map();
@@ -104,18 +103,18 @@ class MapRenderer {
 	// Преобразование пиксельных координат в географические
 	pixelToLatLng(x, y, zoom = this.zoomFloat >= 0 ? this.zoomFloat : this.zoom) {
 		const worldSize = Math.pow(2, zoom) * this.tileSize;
-		
+
 		// Долгота: линейное преобразование
 		const lng = (x / worldSize) * 360 - 180;
-		
+
 		// Широта: обратная проекция Меркатора
 		const n = Math.PI - (2 * Math.PI * y) / worldSize;
 		const latRad = Math.atan(Math.sinh(n));
 		const lat = latRad * 180 / Math.PI;
-		
+
 		// Ограничение широты до допустимого диапазона Web Mercator
 		const clampedLat = Math.max(-85.0511, Math.min(85.0511, lat));
-		
+
 		return [clampedLat, lng];
 	}
 
@@ -135,13 +134,13 @@ class MapRenderer {
 		if (response.ok) {
 			const blob = await response.blob();
 			const img = new Image();
-	
+
 			img.src = URL.createObjectURL(blob);
-	
+
 			if (!this.cache.get(url)) {
 				this.cache.set(url, img);
 			}
-	
+
 			this.debounceRender();
 		}
 	}
@@ -253,45 +252,45 @@ class MapRenderer {
 			}
 		}
 
-// 		if (ctx.canvas.id.includes('osm')) {
-// 			const centerX = Math.floor(this.width / 2);
-// 			const centerY = Math.floor(this.height / 2);
+		// 		if (ctx.canvas.id.includes('osm')) {
+		// 			const centerX = Math.floor(this.width / 2);
+		// 			const centerY = Math.floor(this.height / 2);
 
-// 			ctx.strokeStyle = 'red';
-// 			ctx.lineWidth = 1;
+		// 			ctx.strokeStyle = 'red';
+		// 			ctx.lineWidth = 1;
 
-// 			ctx.beginPath();
-// 			ctx.moveTo(centerX, centerY - 10);
-// 			ctx.lineTo(centerX, centerY + 10);
-// 			ctx.stroke();
+		// 			ctx.beginPath();
+		// 			ctx.moveTo(centerX, centerY - 10);
+		// 			ctx.lineTo(centerX, centerY + 10);
+		// 			ctx.stroke();
 
-// 			ctx.beginPath();
-// 			ctx.moveTo(centerX - 10, centerY);
-// 			ctx.lineTo(centerX + 10, centerY);
-// 			ctx.stroke();
+		// 			ctx.beginPath();
+		// 			ctx.moveTo(centerX - 10, centerY);
+		// 			ctx.lineTo(centerX + 10, centerY);
+		// 			ctx.stroke();
 
-// 			ctx.fillText(
-// 				this.center.join(', '),
-// 				Math.floor(centerX),
-// 				Math.floor(centerY),
-// 			);
+		// 			ctx.fillText(
+		// 				this.center.join(', '),
+		// 				Math.floor(centerX),
+		// 				Math.floor(centerY),
+		// 			);
 
-// 			ctx.textAlign = 'right';
-// 			`${this.center.join(', ')}
-// width = ${this.width}
-// height = ${this.height}
-// zoom = ${this.zoom}
-// zoomFloat = ${this.zoomFloat}
-// tileSize = ${tileSize}
-// numTiles = ${numTiles}
-// tilesPerRow = ${tilesPerRow}
-// tilesPerCol = ${tilesPerCol}
-// centerPixel = ${centerPixel.join(', ')}
-// `
-// 			.split('\n').forEach((line, index) => {
-// 				ctx.fillText(line, this.width - 5, 10 + index * 10);
-// 			});
-// 		}
+		// 			ctx.textAlign = 'right';
+		// 			`${this.center.join(', ')}
+		// width = ${this.width}
+		// height = ${this.height}
+		// zoom = ${this.zoom}
+		// zoomFloat = ${this.zoomFloat}
+		// tileSize = ${tileSize}
+		// numTiles = ${numTiles}
+		// tilesPerRow = ${tilesPerRow}
+		// tilesPerCol = ${tilesPerCol}
+		// centerPixel = ${centerPixel.join(', ')}
+		// `
+		// 			.split('\n').forEach((line, index) => {
+		// 				ctx.fillText(line, this.width - 5, 10 + index * 10);
+		// 			});
+		// 		}
 
 		return list;
 	}
@@ -321,17 +320,44 @@ class MapRenderer {
 	}
 
 	setupEventListeners() {
-		this.gpxCanvas.addEventListener('mousedown', (e) => {
-			this.isDragging = true;
-			this.lastX = e.clientX;
-			this.lastY = e.clientY;
-			this.gpxCanvas.style.cursor = 'grabbing';
-		});
+		const isMobile = 'ontouchstart' in window;
 
-		this.gpxCanvas.addEventListener('mousemove', (e) => {
+		const dragStartCallback = (e) => {
+			if (e.touches && e.touches.length > 1) {
+				return;
+			}
+
+			this.isDragging = true;
+			this.lastX = e.touches?.[0]?.clientX || e.clientX;
+			this.lastY = e.touches?.[0]?.clientY || e.clientY;
+			this.gpxCanvas.style.cursor = 'grabbing';
+		};
+
+		const dragCallback = (e) => {
+			if (e.touches && e.touches.length > 1) {
+				const touch1 = e.touches[0];
+				const touch2 = e.touches[1];
+				const dx = touch1.clientX - touch2.clientX;
+				const dy = touch1.clientY - touch2.clientY;
+				const currentDistance = Math.sqrt(dx * dx + dy * dy);
+
+				if (!this.lastDistance) {
+					this.lastDistance = currentDistance;
+				} else {
+					const scaleFactor = currentDistance / this.lastDistance;
+					// setScale((scale) => getInRange(scale * scaleFactor, [minScale, maxScale]));
+					this.zoomFloat = Math.max(2, Math.min(19,
+						this.zoomFloat * scaleFactor,
+					));
+					this.lastDistance = currentDistance;
+				}
+
+				return;
+			}
+
 			if (this.isDragging) {
-				const dx = e.clientX - this.lastX;
-				const dy = e.clientY - this.lastY;
+				const dx = (e.touches?.[0]?.clientX || e.clientX) - this.lastX;
+				const dy = (e.touches?.[0]?.clientY || e.clientY) - this.lastY;
 				const scale = Math.pow(2, this.zoom);
 				const latPerPixel = 360 / (scale * this.tileSize);
 				const lngPerPixel = 360 / (scale * this.tileSize);
@@ -343,14 +369,14 @@ class MapRenderer {
 				// this.center[0] += dy * latPerPixel;
 				// this.center[1] -= dx * lngPerPixel;
 
-				this.lastX = e.clientX;
-				this.lastY = e.clientY;
+				this.lastX = e.touches?.[0]?.clientX || e.clientX;
+				this.lastY = e.touches?.[0]?.clientY || e.clientY;
 
 				this.render();
 			}
-		});
+		};
 
-		this.gpxCanvas.addEventListener('mouseup', (e) => {
+		const dragEndCallback = (e) => {
 
 			// const centerX = this.width / 2;
 			// const centerY = this.height / 2;
@@ -382,13 +408,9 @@ class MapRenderer {
 			this.render();
 
 			this.isDragging = false;
+			this.lastDistance = 0;
 			this.gpxCanvas.style.cursor = 'default';
-		});
-
-		this.gpxCanvas.addEventListener('mouseleave', () => {
-			this.isDragging = false;
-			this.gpxCanvas.style.cursor = 'default';
-		});
+		};
 
 		const wheelCallback = throttle((e) => {
 			e.preventDefault();
@@ -421,7 +443,22 @@ class MapRenderer {
 			this.render();
 		});
 
-		this.gpxCanvas.addEventListener('wheel', wheelCallback);
+		if (isMobile) {
+			this.gpxCanvas.addEventListener('touchstart', dragStartCallback);
+			this.gpxCanvas.addEventListener('touchmove', dragCallback);
+			this.gpxCanvas.addEventListener('touchend', dragEndCallback);
+		} else {
+			this.gpxCanvas.addEventListener('mousedown', dragStartCallback);
+			this.gpxCanvas.addEventListener('mousemove', dragCallback);
+			this.gpxCanvas.addEventListener('mouseup', dragEndCallback);
+
+			this.gpxCanvas.addEventListener('mouseleave', () => {
+				this.isDragging = false;
+				this.gpxCanvas.style.cursor = 'default';
+			});
+
+			this.gpxCanvas.addEventListener('wheel', wheelCallback);
+		}
 	}
 }
 
@@ -438,7 +475,7 @@ window.addEventListener('load', async () => {
 		body: tg?.initData,
 	});
 
-	const data =  await resp.json();
+	const data = await resp.json();
 
 	tg?.expand();
 	// tg.setBackgroundColor('#d9d7ff');

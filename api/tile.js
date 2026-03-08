@@ -5,11 +5,16 @@ const {
 	getTilePath,
 } = require('../tiles');
 const { getSession } = require('../session');
+const {
+	telegram: {
+		debugUserId,
+	},
+} = require('../config.json');
 
 const tile = async (req, res) => {
 	const token = req.cookies.token;
 	const session = getSession(token);
-	const id = session?.id;
+	const id = session?.id || debugUserId;
 
 	// TODO
 	// if (!id) {

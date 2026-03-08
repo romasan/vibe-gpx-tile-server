@@ -6,6 +6,11 @@ const {
 	getSession,
 	addSession,
 } = require('../session');
+const {
+	telegram: {
+		token,
+	},
+} = require('../config.json');
 
 const checkTelegramAuth = (query) => {
 	const secret = crypto.createHmac('sha256', 'WebAppData')
