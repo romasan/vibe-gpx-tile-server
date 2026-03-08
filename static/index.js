@@ -101,7 +101,7 @@ class MapRenderer {
 	}
 
 	// Преобразование пиксельных координат в географические
-	pixelToLatLng(x, y, zoom = this.zoomFloat >= 0 ? this.zoomFloat : this.zoom) {
+	pixelToLatLng(x, y, zoom = this.zoomFloat) {
 		const worldSize = Math.pow(2, zoom) * this.tileSize;
 
 		// Долгота: линейное преобразование
@@ -345,12 +345,21 @@ class MapRenderer {
 					this.lastDistance = currentDistance;
 				} else {
 					const scaleFactor = currentDistance / this.lastDistance;
-					// setScale((scale) => getInRange(scale * scaleFactor, [minScale, maxScale]));
+
 					this.zoomFloat = Math.max(2, Math.min(19,
 						this.zoomFloat * scaleFactor,
 					));
+
+					const newZoom = Math.floor(this.zoomFloat);
+
+					if (newZoom !== this.zoom) {
+						this.zoom = newZoom;
+					}
+
 					this.lastDistance = currentDistance;
 				}
+
+				this.render();
 
 				return;
 			}
@@ -425,10 +434,6 @@ class MapRenderer {
 
 			// this.center[0] -= dy * latPerPixel * (e.deltaY > 0 ? -1 : 1) * .05;
 			// this.center[1] += dx * lngPerPixel * (e.deltaY > 0 ? -1 : 1) * .05;
-
-			if (this.zoomFloat < 0) {
-				this.zoomFloat = this.zoom;
-			}
 
 			this.zoomFloat = Math.max(2, Math.min(19,
 				this.zoomFloat + (e.deltaY > 0 ? -.1 : .1)

@@ -25,6 +25,13 @@ const checkTelegramAuth = (query) => {
 		.update(checkString)
 		.digest('hex');
 
+	console.log('==== checkTelegramAuth', {
+		secret,
+		checkString,
+		hash,
+		query,
+	});
+
 	return hash === query.hash;
 };
 
