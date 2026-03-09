@@ -3,7 +3,7 @@ const fs = require('fs').promises;
 const path = require('path');
 const { initializeCachePerUser } = require('../tiles');
 
-const { telegram: { token } } = require('../config.json');
+const { telegram: { token, webapp } } = require('../config.json');
 
 const gpxDir = path.join(__dirname, '../gpx-files');
 
@@ -20,6 +20,18 @@ const init = () => {
 	})();
 
 	// bot.start((ctx) => ctx.reply('Привет! Отправь мне GPX-файл или начни трансляцию геопозиции'));
+	bot.start((ctx) => {
+		// Создаем инлайн-клавиатуру с кнопкой web_app
+		const keyboard = Markup.inlineKeyboard([
+			Markup.button.webApp('🗺️ Показать карту', webapp)
+		]);
+
+		// Отправляем сообщение с клавиатурой
+		return ctx.reply(
+			'Загружай свои GPX-треки в чат-бот и смотри их на карте',
+			keyboard
+		);
+	});
 
 	// Обработка документов (файлов)
 	bot.on('document', async (ctx) => {
