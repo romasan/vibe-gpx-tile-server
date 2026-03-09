@@ -4,29 +4,10 @@
 <head>
 	<meta charset="UTF-8">
 	<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-	<title>GPX Tile Map</title>
+	<title>Покатушки</title>
+	<link rel="stylesheet" href="/style.css" />
 	<style>
-		html,
-		body {
-			height: 100%;
-			margin: 0;
-			overflow: hidden;
-		}
-
-		#map-container {
-			position: relative;
-			width: 100%;
-			height: 100%;
-		}
-
-		#osm-canvas,
-		#gpx-canvas {
-			position: absolute;
-			top: 0;
-			left: 0;
-			width: 100%;
-			height: 100%;
-		}
+		
 	</style>
 </head>
 
@@ -35,8 +16,9 @@
 		<canvas id="osm-canvas"></canvas>
 		<canvas id="gpx-canvas"></canvas>
 	</div>
+	<div id="app"></div>
 	<script src="https://telegram.org/js/telegram-web-app.js"></script>
-	<script src="/index.js"></script>
+	<script type="module" src="/index.js"></script>
 </body>
 
 </html>

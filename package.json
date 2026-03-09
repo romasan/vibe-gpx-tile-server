@@ -3,7 +3,10 @@
   "version": "1.0.0",
   "main": "index.js",
   "scripts": {
-    "start": "node index.js"
+    "start": "pm2 start node ./index.js --name tileserver",
+    "stop": "pm2 stop tileserver && pm2 delete tileserver",
+    "dev": "node index.js",
+    "logs": "pm2 log"
   },
   "keywords": [],
   "author": "",
@@ -22,5 +25,8 @@
     "telegraf": "^4.16.3",
     "uuid": "^9.0.0",
     "xmldom": "^0.6.0"
+  },
+  "devDependencies": {
+    "pm2": "^5.3.1"
   }
 }

@@ -51,7 +51,7 @@ const hasCache = (id) => {
 const saveCache = (id, payload) => {
 	const dirPath = path.join(gpxDir, id);
 	const key = getTokenForFiles(dirPath);
-	const filePath = path.join(cacheDir,`${id}.json`);
+	const filePath = path.join(cacheDir, `${id}.json`);
 
 	console.log('Save cache file', filePath);
 
@@ -104,12 +104,16 @@ function loadGPXFiles(id) {
 		const gpxDoc = new DOMParser().parseFromString(gpxData);
 		const geojson = toGeoJSON.gpx(gpxDoc);
 
+		geojson.features.forEach((item) => {
+			if (item.properties.coordTimes) {
+				delete item.properties.coordTimes;
+			}
+		});
+
 		return geojson.features;
 	}).flat();
 
 	bar.stop();
-
-	// fs.writeFileSync(featuresCacheFile, JSON.stringify({ key, features: geojsonFeatures }));
 
 	return { type: 'FeatureCollection', features: geojsonFeatures };
 }
@@ -184,30 +188,32 @@ function calculateTileIntersections(geojson) {
 	};
 }
 
+const initializeCachePerUser = (id) => {
+	if (!hasCache(id)) {
+		const geojson = loadGPXFiles(id);
+		const {
+			tileFeatureMap,
+			mapCenter,
+			mapZoom,
+		} = calculateTileIntersections(geojson);
+
+		saveCache(id, {
+			geojson,
+			tileFeatureMap,
+			mapCenter,
+			mapZoom,
+		});
+	} else {
+		console.log('load from cache');
+	}
+};
+
 // Инициализация кэша при запуске сервера
 function initializeCache() {
 	const time = Date.now();
 
 	fs.readdirSync(gpxDir)
-		.forEach((id) => {
-			if (!hasCache(id)) {
-				const geojson = loadGPXFiles(id);
-				const {
-					tileFeatureMap,
-					mapCenter,
-					mapZoom,
-				} = calculateTileIntersections(geojson);
-
-				saveCache(id, {
-					geojson,
-					tileFeatureMap,
-					mapCenter,
-					mapZoom,
-				});
-			} else {
-				console.log('load from cache');
-			}
-		});
+		.forEach(initializeCachePerUser);
 
 	const durationSec = Math.floor((Date.now() - time) / 1000);
 	const min = String(Math.floor(durationSec / 60)).padStart(2, '0');
@@ -298,6 +304,7 @@ module.exports = {
 	renderTile,
 	clearTileCache,
 	initializeCache,
+	initializeCachePerUser,
 	getMapInfo,
 	getTileFeatureMap,
 	getTilePath,

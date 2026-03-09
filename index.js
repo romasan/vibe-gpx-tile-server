@@ -9,7 +9,11 @@ const { upload } = require('./api/upload');
 const { init } = require('./api/init');
 const { tile } = require('./api/tile');
 const { osm } = require('./api/osm');
-const { webserver: { port } } = require('./config.json');
+const { init: botInit } = require('./bot');
+const {
+ webserver: { port = 8080 },
+ telegram: { token },
+} = require('./config.json');
 
 const app = express();
 
@@ -27,6 +31,10 @@ app.post('/admin/upload', uploadMiddleware.array('gpxFiles'), upload);
 app.get('/admin/list', list);
 app.delete('/admin/remove-gpx/:fileName', remove);
 app.get('/admin', admin);
+
+if (token) {
+	botInit();
+}
 
 app.listen(port, () => {
 	console.log(`Tile server is running on http://localhost:${port}`);
