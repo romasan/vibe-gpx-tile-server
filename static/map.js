@@ -24,6 +24,8 @@ export class MapRenderer {
 		this.zoomFloat = this.zoom;
 		this.tileSize = 256;
 
+		this.markers = [];
+
 		this.isDragging = 0;
 		this.lastX = 0;
 		this.lastY = 0;
@@ -69,8 +71,8 @@ export class MapRenderer {
 	}
 
 	// Преобразование географических координат в пиксели
-	latLngToPixel(lat, lng, zoom = this.zoom) {
-		const scale = Math.pow(2, zoom) * (1 + (this.zoomFloat % 1));
+	latLngToPixel(lat, lng) {
+		const scale = Math.pow(2, this.zoom) * (1 + (this.zoomFloat % 1));
 		const x = ((lng + 180) / 360) * scale * this.tileSize;
 		const y = ((1 - Math.log(Math.tan(lat * Math.PI / 180) + 1 / Math.cos(lat * Math.PI / 180)) / Math.PI) / 2) * scale * this.tileSize;
 
@@ -78,8 +80,8 @@ export class MapRenderer {
 	}
 
 	// Преобразование пиксельных координат в географические
-	pixelToLatLng(x, y, zoom = this.zoomFloat) {
-		const worldSize = Math.pow(2, zoom) * this.tileSize;
+	pixelToLatLng(x, y) {
+		const worldSize = Math.pow(2, this.zoom) * (1 + (this.zoomFloat % 1)) * this.tileSize;
 
 		// Долгота: линейное преобразование
 		const lng = (x / worldSize) * 360 - 180;
@@ -229,45 +231,44 @@ export class MapRenderer {
 			}
 		}
 
-		// 		if (ctx.canvas.id.includes('osm')) {
-		// 			const centerX = Math.floor(this.width / 2);
-		// 			const centerY = Math.floor(this.height / 2);
+// 		if (ctx.canvas.id.includes('osm')) {
+// 			const centerX = Math.floor(this.width / 2);
+// 			const centerY = Math.floor(this.height / 2);
 
-		// 			ctx.strokeStyle = 'red';
-		// 			ctx.lineWidth = 1;
+// 			ctx.strokeStyle = 'red';
+// 			ctx.lineWidth = 1;
 
-		// 			ctx.beginPath();
-		// 			ctx.moveTo(centerX, centerY - 10);
-		// 			ctx.lineTo(centerX, centerY + 10);
-		// 			ctx.stroke();
+// 			ctx.beginPath();
+// 			ctx.moveTo(centerX, centerY - 10);
+// 			ctx.lineTo(centerX, centerY + 10);
+// 			ctx.stroke();
 
-		// 			ctx.beginPath();
-		// 			ctx.moveTo(centerX - 10, centerY);
-		// 			ctx.lineTo(centerX + 10, centerY);
-		// 			ctx.stroke();
+// 			ctx.beginPath();
+// 			ctx.moveTo(centerX - 10, centerY);
+// 			ctx.lineTo(centerX + 10, centerY);
+// 			ctx.stroke();
 
-		// 			ctx.fillText(
-		// 				this.center.join(', '),
-		// 				Math.floor(centerX),
-		// 				Math.floor(centerY),
-		// 			);
+// 			ctx.fillText(
+// 				this.center.join(', '),
+// 				Math.floor(centerX),
+// 				Math.floor(centerY),
+// 			);
 
-		// 			ctx.textAlign = 'right';
-		// 			`${this.center.join(', ')}
-		// width = ${this.width}
-		// height = ${this.height}
-		// zoom = ${this.zoom}
-		// zoomFloat = ${this.zoomFloat}
-		// tileSize = ${tileSize}
-		// numTiles = ${numTiles}
-		// tilesPerRow = ${tilesPerRow}
-		// tilesPerCol = ${tilesPerCol}
-		// centerPixel = ${centerPixel.join(', ')}
-		// `
-		// 			.split('\n').forEach((line, index) => {
-		// 				ctx.fillText(line, this.width - 5, 10 + index * 10);
-		// 			});
-		// 		}
+// 			ctx.textAlign = 'right';
+// 			`${this.center.join(', ')}
+// width = ${this.width}
+// height = ${this.height}
+// zoom = ${this.zoom}
+// zoomFloat = ${this.zoomFloat}
+// tileSize = ${tileSize}
+// numTiles = ${numTiles}
+// tilesPerRow = ${tilesPerRow}
+// tilesPerCol = ${tilesPerCol}
+// centerPixel = ${centerPixel.join(', ')}`
+// 				.split('\n').forEach((line, index) => {
+// 					ctx.fillText(line, this.width - 5, 10 + index * 10);
+// 				});
+// 		}
 
 		return list;
 	}
@@ -293,7 +294,36 @@ export class MapRenderer {
 		const osmList = this.renderOSMTiles();
 		const gpxList = this.renderGPXTiles();
 
+		this.renderMarkers();
+
 		// this.breakFetch(osmList.concat(gpxList));
+	}
+
+	/**
+	 * Конвертирует экранные координаты в географические
+	 * С учётом дробного зума (zoomFloat)
+	 * @param {number} screenX - X относительно canvas
+	 * @param {number} screenY - Y относительно canvas
+	 * @returns {[number, number]} [lat, lng]
+	 */
+	screenToLatLng(screenX, screenY) {
+		const fractionalZoom = this.zoomFloat % 1;
+		const renderScale = 1 + fractionalZoom; // Множитель, используемый при рендеринге
+
+		const centerX = this.width / 2;
+		const centerY = this.height / 2;
+
+		// Получаем мировые координаты центра карты на ЦЕЛОМ уровне зума
+		const centerWorld = this.latLngToPixel(this.center[0], this.center[1], this.zoom);
+
+		// Конвертируем смещение на экране в мировые пиксели (на целочисленном зуме)
+		// Делим на renderScale, чтобы компенсировать масштабирование при рендеринге
+		const worldX = centerWorld[0] + (screenX - centerX) / renderScale;
+		const worldY = centerWorld[1] + (screenY - centerY) / renderScale;
+
+		// Конвертируем мировые пиксели в географические координаты
+		// Важно: передаём this.zoom (целый), т.к. worldX/worldY рассчитаны для него
+		return this.pixelToLatLng(worldX, worldY, this.zoom);
 	}
 
 	setupEventListeners() {
@@ -372,30 +402,19 @@ export class MapRenderer {
 
 			// const centerX = this.width / 2;
 			// const centerY = this.height / 2;
+			// const centerPixel = this.latLngToPixel(this.center[0], this.center[1]);
 
-			// const dx = e.clientX - centerX;
-			// const dy = e.clientY - centerY;
+			// const worldX = e.clientX - centerX + centerPixel[0];
+			// const worldY = e.clientY - centerY + centerPixel[1];
 
-			// const scale = Math.pow(2, this.zoom);
-			// const lpp = 360 / (scale * this.tileSize);
+			// let [lat, lng] = this.pixelToLatLng(worldX, worldY);
 
-			// // Применяем смещение к центру карты (в обратном направлении)
-			// const newCenterY = this.center[0] - dy * lpp;
-			// const newCenterX = this.center[1] + dx * lpp;
+			// console.log(`📍 Latitude: ${lat.toFixed(6)}, Longitude: ${lng.toFixed(6)}`);
 
-			// // this.center[0] -= dy * latPerPixel * (e.deltaY > 0 ? -1 : 1) * .05;
-			// // this.center[1] += dx * lngPerPixel * (e.deltaY > 0 ? -1 : 1) * .05;
+			// this.addMarker(lat, lng);
 
-			// console.log('==== mouseup', {
-			// 	dx,
-			// 	dy,
-			// 	zoom: this.zoomFloat,
-			// 	newCenterX,
-			// 	newCenterY,
-			// });
-
-			// this.center[0] = newCenterY;
-			// this.center[1] = newCenterX;
+			// this.center[0] = lat;
+			// this.center[1] = lng;
 
 			this.render();
 
@@ -446,6 +465,104 @@ export class MapRenderer {
 			});
 
 			this.gpxCanvas.addEventListener('wheel', wheelCallback);
+		}
+
+	}
+
+	/**
+	 * Добавляет маркер на карту по координатам
+	 * @param {number} lat - Широта
+	 * @param {number} lng - Долгота
+	 * @param {Object} options - Опции: color, radius и др.
+	 * @returns {boolean} - true если маркер видим на текущем вьюпорте
+	 */
+	addMarker(lat, lng, options = {}) {
+		// Ограничение широты в допустимом диапазоне Web Mercator
+		const clampedLat = Math.max(-85.0511, Math.min(85.0511, lat));
+
+		const marker = {
+			lat: clampedLat,
+			lng: ((lng + 180) % 360 + 360) % 360 - 180, // Нормализация долготы
+			color: options.color || '#ff3b30',
+			radius: options.radius || 6,
+			stroke: options.stroke || '#ffffff',
+			strokeWidth: options.strokeWidth || 2,
+			...options
+		};
+
+		this.markers.push(marker);
+		this.render();
+
+		// Проверяем видимость маркера
+		return this.isPointVisible(marker.lat, marker.lng);
+	}
+
+	/**
+	 * Проверяет, видна ли точка в текущем вьюпорте
+	 * @private
+	 */
+	isPointVisible(lat, lng) {
+		const [worldX, worldY] = this.latLngToPixel(lat, lng);
+		const centerPixel = this.latLngToPixel(this.center[0], this.center[1]);
+		const centerX = this.width / 2;
+		const centerY = this.height / 2;
+		const screenX = worldX - centerPixel[0] + centerX;
+		const screenY = worldY - centerPixel[1] + centerY;
+		const margin = 50; // Запас для плавного появления
+
+		return (
+			screenX >= -margin &&
+			screenX <= this.width + margin &&
+			screenY >= -margin &&
+			screenY <= this.height + margin
+		);
+	}
+
+	/**
+	 * Отрисовывает все сохранённые маркеры на GPX-канвасе
+	 * @private
+	 */
+	renderMarkers() {
+		if (this.markers.length === 0) {
+			return;
+		}
+
+		const centerX = this.width / 2;
+		const centerY = this.height / 2;
+		const centerPixel = this.latLngToPixel(this.center[0], this.center[1]);
+
+		for (const marker of this.markers) {
+			const [worldX, worldY] = this.latLngToPixel(marker.lat, marker.lng);
+
+			// Конвертация мировых координат в экранные
+			const screenX = worldX - centerPixel[0] + centerX;
+			const screenY = worldY - centerPixel[1] + centerY;
+
+			// Пропускаем маркеры далеко за пределами экрана
+			const margin = 100;
+
+			if (
+				screenX < -margin ||
+				screenX > this.width + margin ||
+				screenY < -margin ||
+				screenY > this.height + margin
+			) {
+				continue;
+			}
+
+			this.gpxCtx.save();
+			this.gpxCtx.beginPath();
+			this.gpxCtx.arc(screenX, screenY, marker.radius, 0, Math.PI * 2);
+			this.gpxCtx.fillStyle = marker.color;
+			this.gpxCtx.fill();
+
+			if (marker.stroke) {
+				this.gpxCtx.strokeStyle = marker.stroke;
+				this.gpxCtx.lineWidth = marker.strokeWidth;
+				this.gpxCtx.stroke();
+			}
+
+			this.gpxCtx.restore();
 		}
 	}
 }
