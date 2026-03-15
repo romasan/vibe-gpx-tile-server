@@ -21,6 +21,9 @@ export class MapRenderer {
 
 		this.center = data?.center || [0, 0];
 		this.zoom = data?.zoom || 2;
+
+		this.showDebug = data?.showDebug || false;
+
 		this.zoomFloat = this.zoom;
 		this.tileSize = 256;
 
@@ -36,7 +39,6 @@ export class MapRenderer {
 
 		this.debounceRender = debounce(() => this.render());
 
-		this.loadMapInfo();
 		this.setupEventListeners();
 
 		const resizeCallback = debounce(() => this.handleResize());
@@ -44,20 +46,6 @@ export class MapRenderer {
 		window.addEventListener('resize', resizeCallback);
 
 		this.render();
-	}
-
-	async loadMapInfo() {
-		try {
-			const response = await fetch('/info');
-			const data = await response.json();
-
-			this.center = data.center;
-			this.zoom = data.zoom;
-
-			this.render();
-		} catch (error) {
-			console.error('Error loading map info:', error);
-		}
 	}
 
 	handleResize() {
@@ -160,41 +148,41 @@ export class MapRenderer {
 				let tileX = Math.floor((x * tileSize - offsetX) / tileSize);
 				let tileY = Math.floor((y * tileSize - offsetY) / tileSize);
 
-				// if (ctx.canvas.id.includes('osm')) {
-				// 	// const [, , z, x, y] = url.split(/[\/\.]+/ig);
+				if (this.showDebug && ctx.canvas.id.includes('osm')) {
+					// const [, , z, x, y] = url.split(/[\/\.]+/ig);
 
-				// 	const x1 = Math.round(tileX * tileSize + offsetX);
-				// 	const y1 = Math.round(tileY * tileSize + offsetY);
-				// 	const x2 = x1 + Math.ceil(tileSize);
-				// 	const y2 = y1 + Math.ceil(tileSize);
+					const x1 = Math.round(tileX * tileSize + offsetX);
+					const y1 = Math.round(tileY * tileSize + offsetY);
+					const x2 = x1 + Math.ceil(tileSize);
+					const y2 = y1 + Math.ceil(tileSize);
 
-				// 	ctx.strokeStyle = 'green';
-				// 	ctx.lineWidth = 1;
+					ctx.strokeStyle = 'green';
+					ctx.lineWidth = 1;
 
-				// 	ctx.beginPath();
-				// 	ctx.moveTo(x1, y1 + 30);
-				// 	ctx.lineTo(x1, y1);
-				// 	ctx.lineTo(x1 + 30, y1);
-				// 	ctx.stroke();
+					ctx.beginPath();
+					ctx.moveTo(x1, y1 + 30);
+					ctx.lineTo(x1, y1);
+					ctx.lineTo(x1 + 30, y1);
+					ctx.stroke();
 
-				// 	ctx.beginPath();
-				// 	ctx.moveTo(x2, y1 + 30);
-				// 	ctx.lineTo(x2, y1);
-				// 	ctx.lineTo(x2 - 30, y1);
-				// 	ctx.stroke();
+					ctx.beginPath();
+					ctx.moveTo(x2, y1 + 30);
+					ctx.lineTo(x2, y1);
+					ctx.lineTo(x2 - 30, y1);
+					ctx.stroke();
 
-				// 	ctx.beginPath();
-				// 	ctx.moveTo(x1 + 30, y2);
-				// 	ctx.lineTo(x1, y2);
-				// 	ctx.lineTo(x1, y2 - 30);
-				// 	ctx.stroke();
+					ctx.beginPath();
+					ctx.moveTo(x1 + 30, y2);
+					ctx.lineTo(x1, y2);
+					ctx.lineTo(x1, y2 - 30);
+					ctx.stroke();
 
-				// 	ctx.beginPath();
-				// 	ctx.moveTo(x2, y2 - 30);
-				// 	ctx.lineTo(x2, y2);
-				// 	ctx.lineTo(x2 - 30, y2);
-				// 	ctx.stroke();
-				// }
+					ctx.beginPath();
+					ctx.moveTo(x2, y2 - 30);
+					ctx.lineTo(x2, y2);
+					ctx.lineTo(x2 - 30, y2);
+					ctx.stroke();
+				}
 
 				// Проверяем, чтобы координаты тайла были корректными
 				if (tileX >= 0 && tileY >= 0 && tileX < numTiles && tileY < numTiles) {
@@ -231,44 +219,44 @@ export class MapRenderer {
 			}
 		}
 
-// 		if (ctx.canvas.id.includes('osm')) {
-// 			const centerX = Math.floor(this.width / 2);
-// 			const centerY = Math.floor(this.height / 2);
+		if (this.showDebug && ctx.canvas.id.includes('osm')) {
+			const centerX = Math.floor(this.width / 2);
+			const centerY = Math.floor(this.height / 2);
 
-// 			ctx.strokeStyle = 'red';
-// 			ctx.lineWidth = 1;
+			ctx.strokeStyle = 'red';
+			ctx.lineWidth = 1;
 
-// 			ctx.beginPath();
-// 			ctx.moveTo(centerX, centerY - 10);
-// 			ctx.lineTo(centerX, centerY + 10);
-// 			ctx.stroke();
+			ctx.beginPath();
+			ctx.moveTo(centerX, centerY - 10);
+			ctx.lineTo(centerX, centerY + 10);
+			ctx.stroke();
 
-// 			ctx.beginPath();
-// 			ctx.moveTo(centerX - 10, centerY);
-// 			ctx.lineTo(centerX + 10, centerY);
-// 			ctx.stroke();
+			ctx.beginPath();
+			ctx.moveTo(centerX - 10, centerY);
+			ctx.lineTo(centerX + 10, centerY);
+			ctx.stroke();
 
-// 			ctx.fillText(
-// 				this.center.join(', '),
-// 				Math.floor(centerX),
-// 				Math.floor(centerY),
-// 			);
+			ctx.fillText(
+				this.center.join(', '),
+				Math.floor(centerX),
+				Math.floor(centerY),
+			);
 
-// 			ctx.textAlign = 'right';
-// 			`${this.center.join(', ')}
-// width = ${this.width}
-// height = ${this.height}
-// zoom = ${this.zoom}
-// zoomFloat = ${this.zoomFloat}
-// tileSize = ${tileSize}
-// numTiles = ${numTiles}
-// tilesPerRow = ${tilesPerRow}
-// tilesPerCol = ${tilesPerCol}
-// centerPixel = ${centerPixel.join(', ')}`
-// 				.split('\n').forEach((line, index) => {
-// 					ctx.fillText(line, this.width - 5, 10 + index * 10);
-// 				});
-// 		}
+			ctx.textAlign = 'right';
+			`${this.center.join(', ')}
+width = ${this.width}
+height = ${this.height}
+zoom = ${this.zoom}
+zoomFloat = ${this.zoomFloat}
+tileSize = ${tileSize}
+numTiles = ${numTiles}
+tilesPerRow = ${tilesPerRow}
+tilesPerCol = ${tilesPerCol}
+centerPixel = ${centerPixel.join(', ')}`
+				.split('\n').forEach((line, index) => {
+					ctx.fillText(line, this.width - 5, 10 + index * 10);
+				});
+		}
 
 		return list;
 	}

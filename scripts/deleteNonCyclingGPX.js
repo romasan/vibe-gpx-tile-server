@@ -2,8 +2,10 @@ const fs = require('fs').promises;
 const path = require('path');
 const { DOMParser } = require('xmldom');
 
+// const counter = {};
+
 // Путь к папке с GPX файлами
-const directoryPath = '../gpx-files';
+const directoryPath = __dirname + '/../export_/activities';
 
 // Функция для проверки, содержит ли файл тип "cycling"
 async function checkIfCycling(filePath) {
@@ -12,7 +14,10 @@ async function checkIfCycling(filePath) {
     const doc = new DOMParser().parseFromString(data, 'application/xml');
     const typeNode = doc.getElementsByTagName('type')[0];
     const type = typeNode ? typeNode.textContent : null;
-    return type === 'cycling';
+    // console.log('type is:', type);
+    // counter[type] = (counter[type] || 0) + 1;
+    // return type === 'cycling';
+    return type !== 'walking';
   } catch (err) {
     console.error(`Ошибка при чтении файла ${filePath}:`, err);
     return false;
@@ -45,6 +50,8 @@ async function processFiles() {
         }
       }
     }
+
+    // console.log('count:', JSON.stringify(counter, null, 2));
   } catch (err) {
     console.error('Ошибка при чтении директории:', err);
   }

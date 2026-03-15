@@ -8,6 +8,12 @@ const { telegram: { token, webapp } } = require('../config.json');
 const gpxDir = path.join(__dirname, '../gpx-files');
 
 const init = () => {
+	if (!token) {
+		console.log('Error: telegram token not found in config');
+
+		return;
+	}
+
 	const bot = new Telegraf(token);
 
 	// Убедимся, что папка для треков существует

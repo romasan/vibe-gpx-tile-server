@@ -50,7 +50,11 @@ const init = (req, res) => {
 	const payload = req.body;
 	const params = Object.fromEntries(new URLSearchParams(payload));
 
-	const success = checkTelegramAuth(params);
+	let success = null;
+
+	try {
+		success = checkTelegramAuth(params);
+	} catch (error) {}
 
 	if (success) {
 		let user = {};
@@ -71,7 +75,10 @@ const init = (req, res) => {
 
 		prefetchCache(user.id);
 
-		res.json(getMapInfo(user.id));
+		res.json({
+			...getMapInfo(user.id),
+			...(user.id === debugUserId ? { showDebug: true } : {}),
+		});
 
 		return;
 	}
@@ -83,7 +90,7 @@ const init = (req, res) => {
 	}
 
 	res.json({
-		error: true
+		error: true,
 	});
 };
 
