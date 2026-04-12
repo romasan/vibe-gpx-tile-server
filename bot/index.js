@@ -44,6 +44,8 @@ const init = () => {
 
 	// Обработка документов (файлов)
 	bot.on('document', async (ctx) => {
+		console.log('==== document');
+
 		const id = ctx.message.from.id;
 		const document = ctx.message.document;
 		const fileName = document.file_name || 'unknown.gpx';
