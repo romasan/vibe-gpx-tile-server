@@ -1,10 +1,12 @@
 const { Telegraf, Markup } = require('telegraf');
+const { SocksProxyAgent } = require('socks-proxy-agent');
 const fs = require('fs').promises;
 const path = require('path');
-const { initializeCachePerUser } = require('../tiles');
+// const { initializeCachePerUser } = require('../tiles');
 
 const {
 	telegram: { token, webapp },
+	proxy: { host },
 	debugIDForStrava,
 } = require('../config.json');
 
@@ -17,7 +19,16 @@ const init = () => {
 		return;
 	}
 
-	const bot = new Telegraf(token);
+	const agent = new SocksProxyAgent(host);
+
+	const options = {
+		telegram: {
+			agent: agent,
+			webhookReply: false,
+		}
+	};
+
+	const bot = new Telegraf(token, options);
 
 	// Убедимся, что папка для треков существует
 	(async () => {
