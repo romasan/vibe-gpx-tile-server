@@ -3,7 +3,10 @@ const fs = require('fs').promises;
 const path = require('path');
 const { initializeCachePerUser } = require('../tiles');
 
-const { telegram: { token, webapp } } = require('../config.json');
+const {
+	telegram: { token, webapp },
+	debugIDForStrava,
+} = require('../config.json');
 
 const gpxDir = path.join(__dirname, '../gpx-files');
 
@@ -70,8 +73,28 @@ const init = () => {
 
 			ctx.reply(`новый трек "${fileName}" добавлен`);
 
-			initializeCachePerUser(String(id));
+			if (id === debugIDForStrava) {
+				ctx.reply(`Начата загрузка трека в Strava`);
+
+				try {
+					await upload(filePath);
+				} catch (error) {
+					ctx.reply(`Ошибка загрузки в Strava: ${error}`);
+
+					return;
+				}
+
+				ctx.reply(`Загрузка трека в Strava прошла успешно`);
+			}
+
+			ctx.reply(`Началось обновление карты (TODO)`);
+
+			// ctx.reply(`Обновление карты прошло успешно`);
+
+			// initializeCachePerUser(String(id));
+
 			// TODO clear cache files per user
+
 			// refech cache
 		} catch (err) {
 			console.error('Ошибка при сохранении файла:', err);

@@ -21,11 +21,11 @@ const getLocation = () => new Promise((resolve) => {
 window.addEventListener('load', async () => {
 	const tg = window?.Telegram?.WebApp;
 
-	if (!tg) {
-		document.location.href = 'https://t.me/mygpxbot';
+	// if (!tg) {
+	// 	document.location.href = 'https://t.me/mygpxbot';
 
-		return;
-	}
+	// 	return;
+	// }
 
 	const resp = await fetch('/start', {
 		method: 'POST',

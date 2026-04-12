@@ -243,17 +243,27 @@ export class MapRenderer {
 			);
 
 			ctx.textAlign = 'right';
-			`${this.center.join(', ')}
+			`\
+center = ${this.center.join(', ')}
 width = ${this.width}
 height = ${this.height}
 zoom = ${this.zoom}
 zoomFloat = ${this.zoomFloat}
+tileSize = ${this.tileSize}
 tileSize = ${tileSize}
+tileScale = ${tileSize / this.tileSize}
 numTiles = ${numTiles}
 tilesPerRow = ${tilesPerRow}
 tilesPerCol = ${tilesPerCol}
-centerPixel = ${centerPixel.join(', ')}`
+centerPixel = ${centerPixel.join(', ')}
+devicePixelRatio=${window.devicePixelRatio}
+cache = ${this.cache.size}
+loading = ${this.loading.size}`
 				.split('\n').forEach((line, index) => {
+					const textWidth = ctx.measureText(line).width;
+					ctx.fillStyle = '#000';
+					ctx.fillRect(this.width - 6 - textWidth, 1 + index * 10, textWidth + 2, 10);
+					ctx.fillStyle = '#fff';
 					ctx.fillText(line, this.width - 5, 10 + index * 10);
 				});
 		}
@@ -360,6 +370,7 @@ centerPixel = ${centerPixel.join(', ')}`
 			}
 
 			if (this.isDragging) {
+				// const tileScale = (this.tileSize * scale) / this.tileSize;
 				const dx = (e.touches?.[0]?.clientX || e.clientX) - this.lastX;
 				const dy = (e.touches?.[0]?.clientY || e.clientY) - this.lastY;
 				const scale = Math.pow(2, this.zoom);

@@ -9,6 +9,7 @@ const {
 	addSession,
 } = require('../session');
 const {
+	debugMode,
 	telegram: {
 		token,
 		debugUserId,
@@ -77,7 +78,7 @@ const init = (req, res) => {
 
 		res.json({
 			...getMapInfo(user.id),
-			...(user.id === debugUserId ? { showDebug: true } : {}),
+			...((debugMode || user.id === debugUserId) ? { showDebug: true } : {}),
 		});
 
 		return;
@@ -91,6 +92,7 @@ const init = (req, res) => {
 
 	res.json({
 		error: true,
+		...(debugMode ? { showDebug: true } : {}),
 	});
 };
 
