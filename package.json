@@ -6,7 +6,9 @@
     "start": "pm2 start node ./index.js --name tileserver",
     "stop": "pm2 stop tileserver && pm2 delete tileserver",
     "dev": "node index.js",
-    "logs": "pm2 log"
+    "logs": "pm2 log",
+    "generatePreviews": "node scripts/generatePreviews.js",
+    "deleteNonCycling": "node scripts/deleteNonCyclingGPX.js"
   },
   "keywords": [],
   "author": "",

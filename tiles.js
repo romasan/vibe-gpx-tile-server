@@ -137,8 +137,21 @@ function calculateTileIntersections(geojson) {
 	geojson.features.forEach((feature, featureIndex) => {
 		bar.update(featureIndex);
 
-		if (feature.geometry.type === 'LineString') {
-			feature.geometry.coordinates.forEach(coord => {
+		if (!feature.geometry || !feature.geometry.coordinates) {
+			return;
+		}
+
+		// Helper to iterate over all coordinates in a geometry
+		const iterateCoordinates = (coords, callback) => {
+			if (feature.geometry.type === 'LineString') {
+				coords.forEach(callback);
+			} else if (feature.geometry.type === 'MultiLineString') {
+				coords.forEach(lineString => lineString.forEach(callback));
+			}
+		};
+
+		if (feature.geometry.type === 'LineString' || feature.geometry.type === 'MultiLineString') {
+			iterateCoordinates(feature.geometry.coordinates, coord => {
 				const [lon, lat] = coord;
 
 				minLat = Math.min(minLat, lat);
@@ -250,19 +263,40 @@ function renderTile(z, x, y, id) {
 		const feature = cache[id].geojson.features[featureIndex];
 
 		// Проверка на существование данных
-		if (!feature) {
+		if (!feature || !feature.geometry || !feature.geometry.coordinates) {
 			return '';
 		}
 
-		const path = feature.geometry.coordinates.map((coord) => {
-			const [lon, lat] = coord;
-			const px = ((lon + 180) / 360) * Math.pow(2, z) * tileSize - x * tileSize;
-			const py = ((1 - Math.log(Math.tan(lat * Math.PI / 180) + 1 / Math.cos(lat * Math.PI / 180)) / Math.PI) / 2) * Math.pow(2, z) * tileSize - y * tileSize;
+		// Helper to convert coordinates to pixel positions
+		const coordsToPixels = (coords) => {
+			const result = [];
+			if (feature.geometry.type === 'LineString') {
+				coords.forEach(coord => {
+					const [lon, lat] = coord;
+					const px = ((lon + 180) / 360) * Math.pow(2, z) * tileSize - x * tileSize;
+					const py = ((1 - Math.log(Math.tan(lat * Math.PI / 180) + 1 / Math.cos(lat * Math.PI / 180)) / Math.PI) / 2) * Math.pow(2, z) * tileSize - y * tileSize;
+					result.push(`${px},${py}`);
+				});
+			} else if (feature.geometry.type === 'MultiLineString') {
+				coords.forEach(lineString => {
+					lineString.forEach(coord => {
+						const [lon, lat] = coord;
+						const px = ((lon + 180) / 360) * Math.pow(2, z) * tileSize - x * tileSize;
+						const py = ((1 - Math.log(Math.tan(lat * Math.PI / 180) + 1 / Math.cos(lat * Math.PI / 180)) / Math.PI) / 2) * Math.pow(2, z) * tileSize - y * tileSize;
+						result.push(`${px},${py}`);
+					});
+				});
+			}
+			return result;
+		};
 
-			return `${px},${py}`;
-		}).join(' ');
+		const pixels = coordsToPixels(feature.geometry.coordinates);
 
-		return `<polyline points="${path}" stroke="blue" stroke-width="1" fill="none" />`;
+		if (pixels.length === 0) {
+			return '';
+		}
+
+		return `<polyline points="${pixels.join(' ')}" stroke="blue" stroke-width="1" fill="none" />`;
 	}).join('');
 
 	const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${tileSize}" height="${tileSize}">${svgPaths}</svg>`;

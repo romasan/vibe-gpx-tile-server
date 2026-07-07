@@ -2,21 +2,27 @@ const fs = require('fs').promises;
 const path = require('path');
 const { DOMParser } = require('xmldom');
 
-// const counter = {};
+// Получаем путь к папке из аргументов командной строки
+const targetDir = process.argv[2];
 
-// Путь к папке с GPX файлами
-const directoryPath = __dirname + '/../export_/activities';
+if (!targetDir) {
+  console.error('Использование: node deleteNonCyclingGPX.js <путь_к_папке>');
+  console.error('Пример: node deleteNonCyclingGPX.js gpx-files');
+  process.exit(1);
+}
 
-// Функция для проверки, содержит ли файл тип "cycling"
+// Разрешаем путь относительно рабочей директории
+const directoryPath = path.resolve(targetDir);
+
+console.log(`Обработка директории: ${directoryPath}`);
+
+// Функция для проверки, содержит ли файл тип "cycling" (не "walking")
 async function checkIfCycling(filePath) {
   try {
     const data = await fs.readFile(filePath, 'utf8');
     const doc = new DOMParser().parseFromString(data, 'application/xml');
     const typeNode = doc.getElementsByTagName('type')[0];
     const type = typeNode ? typeNode.textContent : null;
-    // console.log('type is:', type);
-    // counter[type] = (counter[type] || 0) + 1;
-    // return type === 'cycling';
     return type !== 'walking';
   } catch (err) {
     console.error(`Ошибка при чтении файла ${filePath}:`, err);
@@ -34,28 +40,28 @@ async function deleteFile(filePath) {
   }
 }
 
-// Основная функция для обработки файлов
-async function processFiles() {
+// Рекурсивный обход директории и обработка GPX файлов
+async function processDirectory(dirPath) {
   try {
-    const files = await fs.readdir(directoryPath);
+    const entries = await fs.readdir(dirPath, { withFileTypes: true });
 
-    for (const file of files) {
-      const filePath = path.join(directoryPath, file);
+    for (const entry of entries) {
+      const fullPath = path.join(dirPath, entry.name);
 
-      // Проверяем, является ли файл GPX файлом
-      if (path.extname(file).toLowerCase() === '.gpx') {
-        const isCycling = await checkIfCycling(filePath);
+      if (entry.isDirectory()) {
+        // Рекурсивно обрабатываем поддиректории
+        await processDirectory(fullPath);
+      } else if (entry.isFile() && path.extname(entry.name).toLowerCase() === '.gpx') {
+        const isCycling = await checkIfCycling(fullPath);
         if (!isCycling) {
-          await deleteFile(filePath);
+          await deleteFile(fullPath);
         }
       }
     }
-
-    // console.log('count:', JSON.stringify(counter, null, 2));
   } catch (err) {
-    console.error('Ошибка при чтении директории:', err);
+    console.error(`Ошибка при чтении директории ${dirPath}:`, err);
   }
 }
 
-// Запуск обработки файлов
-processFiles();
+// Запуск обработки
+processDirectory(directoryPath);
