@@ -16,13 +16,28 @@ const directoryPath = path.resolve(targetDir);
 
 console.log(`Обработка директории: ${directoryPath}`);
 
+// GPX namespace
+const GPX_NS = 'http://www.topografix.com/GPX/1/1';
+
 // Функция для проверки, содержит ли файл тип "cycling" (не "walking")
 async function checkIfCycling(filePath) {
   try {
     const data = await fs.readFile(filePath, 'utf8');
     const doc = new DOMParser().parseFromString(data, 'application/xml');
-    const typeNode = doc.getElementsByTagName('type')[0];
-    const type = typeNode ? typeNode.textContent : null;
+    // Ищем type элемент с учётом XML namespace
+    const typeNodes = doc.getElementsByTagNameNS(GPX_NS, 'type');
+    let type = null;
+    
+    // Если не нашли через namespace, пробуем без namespace (для файлов без namespace)
+    if (typeNodes.length === 0) {
+      const allTypeNodes = doc.getElementsByTagName('type');
+      if (allTypeNodes.length > 0) {
+        type = allTypeNodes[0].textContent;
+      }
+    } else {
+      type = typeNodes[0].textContent;
+    }
+    
     return type !== 'walking';
   } catch (err) {
     console.error(`Ошибка при чтении файла ${filePath}:`, err);

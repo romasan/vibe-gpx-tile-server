@@ -45,6 +45,7 @@ window.addEventListener('load', async () => {
 	const map = new MapRenderer(data);
 
 	getLocation().then(([lat, lng]) => {
+		map.setCenter(lat, lng, 12);
 		map.addMarker(lat, lng);
 	});
 });

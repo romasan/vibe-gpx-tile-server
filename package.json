@@ -8,7 +8,8 @@
     "dev": "node index.js",
     "logs": "pm2 log",
     "generatePreviews": "node scripts/generatePreviews.js",
-    "deleteNonCycling": "node scripts/deleteNonCyclingGPX.js"
+    "deleteNonCycling": "node scripts/deleteNonCyclingGPX.js",
+    "prepare": "bash scripts/prepare.sh"
   },
   "keywords": [],
   "author": "",
@@ -20,6 +21,7 @@
     "cookie-parser": "^1.4.7",
     "crypto": "^1.0.1",
     "express": "^5.1.0",
+    "fit-file-parser": "^4.1.0",
     "multer": "^2.0.2",
     "node-fetch": "2.6.9",
     "object-deep-merge": "^1.0.5",

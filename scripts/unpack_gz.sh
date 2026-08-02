@@ -22,19 +22,33 @@ echo "Начинаю обработку папки: $TARGET_DIR"
 
 count=0
 
-# Цикл по всем файлам .gz в папке
-for file in "$TARGET_DIR"/*.gz; do
-    # Проверка: если файлов .gz нет, цикл может вернуть сам шаблон "*.gz"
-    if [ -f "$file" ]; then
-        echo "Распаковка: $file"
-        
-        # gunzip распаковывает файл и удаляет оригинал .gz
-        if gunzip "$file"; then
-            ((count++))
-        else
-            echo "Ошибка при распаковке: $file"
+# Рекурсивная функция: распаковывает .gz файлы в папке и всех подпапках
+unpack_gz_recursive() {
+    local dir="$1"
+
+    # Цикл по всем файлам .gz в текущей папке
+    for file in "$dir"/*.gz; do
+        # Проверка: если файлов .gz нет, цикл может вернуть сам шаблон "*.gz"
+        if [ -f "$file" ]; then
+            echo "Распаковка: $file"
+
+            # gunzip распаковывает файл и удаляет оригинал .gz
+            if gunzip "$file"; then
+                ((count++))
+            else
+                echo "Ошибка при распаковке: $file"
+            fi
         fi
-    fi
-done
+    done
+
+    # Рекурсивно обрабатываем все подпапки
+    for subdir in "$dir"/*/; do
+        if [ -d "$subdir" ]; then
+            unpack_gz_recursive "${subdir%/}"
+        fi
+    done
+}
+
+unpack_gz_recursive "$TARGET_DIR"
 
 echo "Готово. Распаковано файлов: $count"

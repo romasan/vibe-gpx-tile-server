@@ -58,6 +58,19 @@ export class MapRenderer {
 		this.render();
 	}
 
+	/**
+	 * Устанавливает центр карты и уровень зума
+	 * @param {number} lat - Широта
+	 * @param {number} lng - Долгота
+	 * @param {number} zoom - Уровень зума
+	 */
+	setCenter(lat, lng, zoom) {
+		this.center = [lat, lng];
+		this.zoom = zoom;
+		this.zoomFloat = zoom;
+		this.render();
+	}
+
 	// Преобразование географических координат в пиксели
 	latLngToPixel(lat, lng) {
 		const scale = Math.pow(2, this.zoom) * (1 + (this.zoomFloat % 1));
