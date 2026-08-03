@@ -1,23 +1,29 @@
 const express = require('express');
+const cookieParser = require('cookie-parser');
 const path = require('path');
 const multer = require('multer');
 const { admin } = require('./api/admin');
 const { remove } = require('./api/remove');
 const { list } = require('./api/list');
 const { upload } = require('./api/upload');
-const { info } = require('./api/info');
+const { init } = require('./api/init');
 const { tile } = require('./api/tile');
 const { osm } = require('./api/osm');
+// const { init: botInit } = require('./bot');
+const {
+ webserver: { port = 8080 },
+ telegram: { token },
+} = require('./config.json');
 
 const app = express();
-const port = 8080;
 
-// Статическая папка для клиентской части
-app.use(express.static(path.join(__dirname, 'public')));
+app.use(cookieParser());
+app.use(express.urlencoded({ extended: true }));
+app.use(express.static(path.join(__dirname, 'static')));
 
 app.get('/osm/:z/:x/:y.png', osm);
 app.get('/tile/:z/:x/:y.png', tile);
-app.get('/info', info);
+app.post('/start', init);
 
 const uploadMiddleware = multer({ dest: 'uploads/' });
 
@@ -25,6 +31,10 @@ app.post('/admin/upload', uploadMiddleware.array('gpxFiles'), upload);
 app.get('/admin/list', list);
 app.delete('/admin/remove-gpx/:fileName', remove);
 app.get('/admin', admin);
+
+// if (token) {
+// 	botInit();
+// }
 
 app.listen(port, () => {
 	console.log(`Tile server is running on http://localhost:${port}`);

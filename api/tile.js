@@ -4,21 +4,37 @@ const {
 	getTileFeatureMap,
 	getTilePath,
 } = require('../tiles');
+const { getSession } = require('../session');
+const {
+	telegram: {
+		debugUserId,
+	},
+} = require('../config.json');
 
 const tile = async (req, res) => {
+	const token = req.cookies.token;
+	const session = getSession(token);
+	const id = session?.id || debugUserId;
+
+	if (!id) {
+		res.status(204).send();
+
+		return;
+	}
+
 	const { z, x, y } = req.params;
 	const tileKey = `${z}-${x}-${y}`;
 
-	const tileFeatureMap = getTileFeatureMap();
+	const tileFeatureMap = getTileFeatureMap(id);
 
 	// Проверка, есть ли что рендерить
-	if (!tileFeatureMap[tileKey] || tileFeatureMap[tileKey].size === 0) {
+	if (!tileFeatureMap?.[tileKey] || tileFeatureMap[tileKey].size === 0) {
 		res.status(204).send(); // Нет контента для рендеринга
 
 		return;
 	}
 
-	const tilePath = getTilePath(z, x, y);
+	const tilePath = getTilePath(z, x, y, id);
 
 	// Проверка наличия кэшированного тайла
 	if (fs.existsSync(tilePath)) {
@@ -29,7 +45,13 @@ const tile = async (req, res) => {
 	}
 
 	try {
-		const tile = await renderTile(parseInt(z), parseInt(x), parseInt(y));
+		const tile = await renderTile(parseInt(z), parseInt(x), parseInt(y), id);
+
+		if (!tile) {
+			res.status(500).send();
+
+			return;
+		}
 
 		fs.writeFileSync(tilePath, tile);
 

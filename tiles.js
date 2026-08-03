@@ -7,53 +7,91 @@ const Progress = require('cli-progress');
 const { simpleHash } = require('./utils');
 
 const gpxDir = path.join(__dirname, 'gpx-files');
-const tileCacheDir = path.join(__dirname, 'cache');
-const featuresCacheFile = __dirname + '/features-cache.json';
+const cacheDir = path.join(__dirname, 'cache');
 
 // Создание папки для кэшированных тайлов, если она не существует
-if (!fs.existsSync(tileCacheDir)) {
-	fs.mkdirSync(tileCacheDir, { recursive: true });
+if (!fs.existsSync(cacheDir)) {
+	fs.mkdirSync(cacheDir, { recursive: true });
 }
 
 const tileSize = 256;
+const cache = {};
 
-// Кэш для данных GeoJSON
-let geojsonCache = null;
-let tileFeatureMap = {};
-let mapCenter = null;
-let mapZoom = null;
+const getTokenForFiles = (dirPath) => {
+	const files = fs.readdirSync(dirPath)
+		.filter(file => file.endsWith('.gpx'));
 
-const getFeaturesCache = (key) => {
-	if (fs.existsSync(featuresCacheFile)) {
+	return simpleHash(files.join(';')).toString();
+};
+
+const hasCache = (id) => {
+	const dirPath = path.join(gpxDir, id);
+	const key = getTokenForFiles(dirPath);
+	const filePath = path.join(cacheDir, `${id}.json`);
+
+	console.log('Check cache file', filePath);
+
+	if (fs.existsSync(filePath)) {
 		try {
-			const json = JSON.parse(fs.readFileSync(featuresCacheFile).toString());
+			const json = JSON.parse(fs.readFileSync(filePath).toString());
 
 			if (json.key === key) {
-				console.log('loaded from cache');
+				// console.log('loaded from cache');
 
-				return json.features;
+				return true;
 			}
 		} catch (error) {
 			console.log('==== Error:', error);
 		}
 	}
 
-	return null;
+	return false;
+};
+
+const saveCache = (id, payload) => {
+	const dirPath = path.join(gpxDir, id);
+	const key = getTokenForFiles(dirPath);
+	const filePath = path.join(cacheDir, `${id}.json`);
+
+	console.log('Save cache file', filePath);
+
+	fs.writeFileSync(filePath, JSON.stringify({
+		key,
+		...payload,
+	}));
+};
+
+const prefetchCache = (id) => {
+	const filePath = path.join(cacheDir, `${id}.json`);
+
+	console.log('Prefetch cache file', filePath);
+
+	if (fs.existsSync(filePath)) {
+		try {
+			const json = JSON.parse(fs.readFileSync(filePath).toString());
+
+			cache[id] = json;
+		} catch (error) {
+			console.log('Error:', error);
+		}
+	} else {
+		console.log('Cache file not found', filePath);
+	}
 };
 
 // Чтение и преобразование GPX в GeoJSON
-function loadGPXFiles() {
-	const files = fs.readdirSync(gpxDir)
+function loadGPXFiles(id) {
+	console.log('Load GPX files...');
+
+	// const cache = getFeaturesCache(key);
+
+	// if (cache) {
+	// 	return { type: 'FeatureCollection', features: cache };
+	// }
+
+	const dirPath = path.join(gpxDir, id);
+	const files = fs.readdirSync(dirPath)
 		.filter(file => file.endsWith('.gpx'));
-	const key = simpleHash(files.join(';')).toString();
-
-	console.log('loadGPXFiles...');
-
-	const cache = getFeaturesCache(key);
-
-	if (cache) {
-		return { type: 'FeatureCollection', features: cache };
-	}
 
 	const bar = new Progress.Bar();
 	bar.start(files.length, 0);
@@ -62,34 +100,58 @@ function loadGPXFiles() {
 	const geojsonFeatures = files.map(file => {
 		bar.update(++count);
 
-		const gpxData = fs.readFileSync(path.join(gpxDir, file), 'utf8');
+		const gpxData = fs.readFileSync(path.join(dirPath, file), 'utf8');
 		const gpxDoc = new DOMParser().parseFromString(gpxData);
 		const geojson = toGeoJSON.gpx(gpxDoc);
+
+		geojson.features.forEach((item) => {
+			if (item.properties.coordTimes) {
+				delete item.properties.coordTimes;
+			}
+		});
 
 		return geojson.features;
 	}).flat();
 
 	bar.stop();
 
-	fs.writeFileSync(featuresCacheFile, JSON.stringify({ key, features: geojsonFeatures }));
-
 	return { type: 'FeatureCollection', features: geojsonFeatures };
 }
 
 // Функция для вычисления пересечений маршрутов с тайлами
 function calculateTileIntersections(geojson) {
-	tileFeatureMap = {}; // Очистка карты перед пересчетом
-	let minLat = Infinity, maxLat = -Infinity, minLon = Infinity, maxLon = -Infinity;
+	console.log('Calculate tile intersections...');
 
-	console.log('calculateTileIntersections...');
+	const tileFeatureMap = {};
+
+	let mapCenter = null;
+	let mapZoom = null;
+	let minLat = Infinity,
+		maxLat = -Infinity,
+		minLon = Infinity,
+		maxLon = -Infinity;
+
 	const bar = new Progress.Bar();
 	bar.start(geojson.features.length, 0);
 
 	geojson.features.forEach((feature, featureIndex) => {
 		bar.update(featureIndex);
 
-		if (feature.geometry.type === 'LineString') {
-			feature.geometry.coordinates.forEach(coord => {
+		if (!feature.geometry || !feature.geometry.coordinates) {
+			return;
+		}
+
+		// Helper to iterate over all coordinates in a geometry
+		const iterateCoordinates = (coords, callback) => {
+			if (feature.geometry.type === 'LineString') {
+				coords.forEach(callback);
+			} else if (feature.geometry.type === 'MultiLineString') {
+				coords.forEach(lineString => lineString.forEach(callback));
+			}
+		};
+
+		if (feature.geometry.type === 'LineString' || feature.geometry.type === 'MultiLineString') {
+			iterateCoordinates(feature.geometry.coordinates, coord => {
 				const [lon, lat] = coord;
 
 				minLat = Math.min(minLat, lat);
@@ -104,6 +166,7 @@ function calculateTileIntersections(geojson) {
 
 					if (!tileFeatureMap[tileKey]) {
 						tileFeatureMap[tileKey] = new Set();
+
 					}
 
 					tileFeatureMap[tileKey].add(featureIndex);
@@ -111,6 +174,10 @@ function calculateTileIntersections(geojson) {
 			});
 		}
 	});
+
+	Object.keys(tileFeatureMap).forEach((key) => {
+		tileFeatureMap[key] = Array.from(tileFeatureMap[key]);
+	})
 
 	bar.stop();
 
@@ -126,20 +193,60 @@ function calculateTileIntersections(geojson) {
 	const maxDiff = Math.max(latDiff, lonDiff);
 
 	mapZoom = Math.floor(8 - Math.log(maxDiff) / Math.log(2));
+
+	return {
+		tileFeatureMap,
+		mapCenter,
+		mapZoom,
+	};
 }
+
+const initializeCachePerUser = (id) => {
+	if (!hasCache(id)) {
+		const geojson = loadGPXFiles(id);
+		const {
+			tileFeatureMap,
+			mapCenter,
+			mapZoom,
+		} = calculateTileIntersections(geojson);
+
+		saveCache(id, {
+			geojson,
+			tileFeatureMap,
+			mapCenter,
+			mapZoom,
+		});
+	} else {
+		console.log('load from cache');
+	}
+};
 
 // Инициализация кэша при запуске сервера
 function initializeCache() {
-	geojsonCache = loadGPXFiles();
-	calculateTileIntersections(geojsonCache);
+	const time = Date.now();
+
+	fs.readdirSync(gpxDir)
+		.forEach(initializeCachePerUser);
+
+	const durationSec = Math.floor((Date.now() - time) / 1000);
+	const min = String(Math.floor(durationSec / 60)).padStart(2, '0');
+	const sec = String(durationSec % 60).padStart(2, '0');
+
+	console.log(`Cache inited at ${min}:${sec}`);
 }
 
 // Функция для рендеринга тайлов
-function renderTile(z, x, y) {
+function renderTile(z, x, y, id) {
+	if (!cache[id]) {
+		console.log('Error rander tile, cache not found', id, z, x, y);
+
+		return null;
+	}
+
 	const time = Date.now();
 
 	const tileKey = `${z}-${x}-${y}`;
-	const featuresToRender = tileFeatureMap[tileKey] || new Set();
+	const featuresToRender = cache[id].tileFeatureMap[tileKey] || [];
 
 	// Создание пустого изображения
 	const image = sharp({
@@ -153,29 +260,50 @@ function renderTile(z, x, y) {
 
 	// Рендеринг маршрутов
 	const svgPaths = Array.from(featuresToRender).map((featureIndex) => {
-		const feature = geojsonCache.features[featureIndex];
+		const feature = cache[id].geojson.features[featureIndex];
 
 		// Проверка на существование данных
-		if (!feature) {
+		if (!feature || !feature.geometry || !feature.geometry.coordinates) {
 			return '';
 		}
 
-		const path = feature.geometry.coordinates.map((coord) => {
-			const [lon, lat] = coord;
-			const px = ((lon + 180) / 360) * Math.pow(2, z) * tileSize - x * tileSize;
-			const py = ((1 - Math.log(Math.tan(lat * Math.PI / 180) + 1 / Math.cos(lat * Math.PI / 180)) / Math.PI) / 2) * Math.pow(2, z) * tileSize - y * tileSize;
+		// Helper to convert coordinates to pixel positions
+		const coordsToPixels = (coords) => {
+			const result = [];
+			if (feature.geometry.type === 'LineString') {
+				coords.forEach(coord => {
+					const [lon, lat] = coord;
+					const px = ((lon + 180) / 360) * Math.pow(2, z) * tileSize - x * tileSize;
+					const py = ((1 - Math.log(Math.tan(lat * Math.PI / 180) + 1 / Math.cos(lat * Math.PI / 180)) / Math.PI) / 2) * Math.pow(2, z) * tileSize - y * tileSize;
+					result.push(`${px},${py}`);
+				});
+			} else if (feature.geometry.type === 'MultiLineString') {
+				coords.forEach(lineString => {
+					lineString.forEach(coord => {
+						const [lon, lat] = coord;
+						const px = ((lon + 180) / 360) * Math.pow(2, z) * tileSize - x * tileSize;
+						const py = ((1 - Math.log(Math.tan(lat * Math.PI / 180) + 1 / Math.cos(lat * Math.PI / 180)) / Math.PI) / 2) * Math.pow(2, z) * tileSize - y * tileSize;
+						result.push(`${px},${py}`);
+					});
+				});
+			}
+			return result;
+		};
 
-			return `${px},${py}`;
-		}).join(' ');
+		const pixels = coordsToPixels(feature.geometry.coordinates);
 
-		return `<polyline points="${path}" stroke="blue" stroke-width="1" fill="none" />`;
+		if (pixels.length === 0) {
+			return '';
+		}
+
+		return `<polyline points="${pixels.join(' ')}" stroke="blue" stroke-width="1" fill="none" />`;
 	}).join('');
 
 	const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${tileSize}" height="${tileSize}">${svgPaths}</svg>`;
 
 	// fs.writeFileSync(`${__dirname}/cache/gpx-${z}-${x}-${y}.svg`, svg);
 
-	console.log(`render tile "${tileKey}" at ${Date.now() - time} ms.`);
+	console.log(`render tile "${tileKey}" for "${id}" at ${Date.now() - time} ms.`);
 
 	return image.composite([{ input: Buffer.from(svg), blend: 'over' }])
 		.png()
@@ -183,25 +311,25 @@ function renderTile(z, x, y) {
 }
 
 // Функция для получения пути кэшированного тайла
-function getTilePath(z, x, y) {
-	return path.join(tileCacheDir, `gpx-${z}-${x}-${y}.png`);
+function getTilePath(z, x, y, id) {
+	return path.join(cacheDir, `gpx-${id}-${z}-${x}-${y}.png`);
 }
 
 // Удаление устаревших тайлов
 function clearTileCache() {
-	fs.readdirSync(tileCacheDir).forEach(file => {
+	fs.readdirSync(cacheDir).forEach(file => {
 		if (file.includes('gpx-')) {
-			fs.unlinkSync(path.join(tileCacheDir, file));
+			fs.unlinkSync(path.join(cacheDir, file));
 		}
 	});
 }
 
-const getMapInfo = () => ({
-	center: mapCenter,
-	zoom: mapZoom
+const getMapInfo = (id) => ({
+	center: cache[id].mapCenter,
+	zoom: cache[id].mapZoom
 });
 
-const getTileFeatureMap = () => tileFeatureMap;
+const getTileFeatureMap = (id) => cache?.[id]?.tileFeatureMap;
 
 // Инициализация кэша перед запуском сервера
 initializeCache();
@@ -210,7 +338,9 @@ module.exports = {
 	renderTile,
 	clearTileCache,
 	initializeCache,
+	initializeCachePerUser,
 	getMapInfo,
 	getTileFeatureMap,
 	getTilePath,
+	prefetchCache,
 };
