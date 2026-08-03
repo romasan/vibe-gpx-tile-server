@@ -26,18 +26,23 @@ echo "=== Подготовка треков в папке: $TARGET_DIR ==="
 echo
 
 # Шаг 1: Распаковка .gz файлов
-echo "--- Шаг 1/3: Распаковка .gz файлов ---"
+echo "--- Шаг 1/4: Распаковка .gz файлов ---"
 bash "$PROJECT_ROOT/scripts/unpack_gz.sh" "$TARGET_DIR"
 echo
 
 # Шаг 2: Конвертация .fit в .gpx
-echo "--- Шаг 2/3: Конвертация .fit в .gpx ---"
+echo "--- Шаг 2/4: Конвертация .fit в .gpx ---"
 node "$PROJECT_ROOT/scripts/convertFitToGpx.js" "$TARGET_DIR"
 echo
 
 # Шаг 3: Удаление не-велосипедных треков
-echo "--- Шаг 3/3: Удаление не-велосипедных треков ---"
+echo "--- Шаг 3/4: Удаление не-велосипедных треков ---"
 node "$PROJECT_ROOT/scripts/deleteNonCyclingGPX.js" "$TARGET_DIR"
+echo
+
+# Шаг 4: Удаление точек из областей
+echo "--- Шаг 4/4: Удаление точек в областях из skipAreas.json ---"
+node "$PROJECT_ROOT/scripts/removePointsInSkipAreas.js" "$TARGET_DIR"
 echo
 
 echo "=== Готово ==="
