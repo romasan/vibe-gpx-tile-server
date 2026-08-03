@@ -88,6 +88,8 @@ gpx-tile-server/
 ├── config.json              # Конфигурация (в .gitignore, не хранится в git)
 ├── package.json
 │
+├── CLAUDE.md             # Правила для Cline: обслуживание README.md при изменениях кода
+│
 ├── api/                     # Обработчики HTTP-эндпоинтов
 │   ├── admin.js             # GET /admin — страница админки
 │   ├── init.js              # POST /start — авторизация и создание сессии
